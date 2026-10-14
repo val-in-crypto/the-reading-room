@@ -55,7 +55,7 @@ export default function ReadingRoom() {
   const [textSize, setTextSize] = useState(17);
   const [page, setPage] = useState(0);
   const [mobilePage, setMobilePage] = useState<"contents" | "article">("contents");
-  const [modal, setModal] = useState<"import" | "about" | "code" | null>(null);
+  const [modal, setModal] = useState<"import" | "about" | null>(null);
   const [importMode, setImportMode] = useState<"link" | "text">("link");
   const [url, setUrl] = useState("");
   const [pasteTitle, setPasteTitle] = useState("");
@@ -71,8 +71,6 @@ export default function ReadingRoom() {
   const [voiceId, setVoiceId] = useState(narratorCatalog[0].id);
   const [voiceConnected, setVoiceConnected] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
-  const [needsCode, setNeedsCode] = useState(false);
-  const [accessCode, setAccessCode] = useState("");
   const [playing, setPlaying] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [audioError, setAudioError] = useState("");
@@ -119,7 +117,7 @@ export default function ReadingRoom() {
       const available: Voice[] = data.voices?.length ? data.voices : narratorCatalog;
       setVoices(available); setVoiceId(available.find(v => v.id === savedVoice.current)?.id ?? available[0].id);
       setVoiceConnected(!!data.configured && !!data.voices?.length);
-      setNeedsCode(!!data.requiresAccessCode); setVoiceMessage(data.error ?? (!data.configured ? "Choose and preview a storyteller. Article listening is not connected yet." : ""));
+      setVoiceMessage(data.error ?? (!data.configured ? "Choose and preview a storyteller. Article listening is not connected yet." : ""));
     }).catch(() => setVoiceMessage("Narrator voices could not be loaded. Please try again later."));
     return () => { storySequence.current++; controller.current?.abort(); audioRef.current?.pause(); previewRef.current?.pause(); for (const src of cache.current.values()) URL.revokeObjectURL(src); };
   }, []);
@@ -209,7 +207,6 @@ export default function ReadingRoom() {
   }
   async function playChunk(index: number, from = 0) {
     if (!voiceConnected) { setAudioError("Article listening is not connected yet. Your storyteller choice has been saved."); return; }
-    if (needsCode && !accessCode) { setModal("code"); return; }
     if (!chunks[index]) return;
     const version = ++sequence.current;
     controller.current?.abort(); previewRef.current?.pause(); setPreviewing(""); audioRef.current?.pause(); setPlaying(false); setAudioError("");
@@ -218,8 +215,8 @@ export default function ReadingRoom() {
     try {
       if (!src) {
         setGenerating(true); controller.current = new AbortController();
-        const response = await fetch("/api/speech", { method: "POST", headers: { "Content-Type": "application/json", "x-prototype-code": accessCode }, body: JSON.stringify({ text: chunks[index], voiceId }), signal: controller.current.signal });
-        if (!response.ok) { const data = await response.json(); if (response.status === 401) setModal("code"); throw new Error(data.error); }
+        const response = await fetch("/api/speech", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: chunks[index], voiceId }), signal: controller.current.signal });
+        if (!response.ok) { const data = await response.json(); throw new Error(data.error); }
         const blob = await response.blob(); if (version !== sequence.current) return;
         src = URL.createObjectURL(blob); cache.current.set(key, src);
         if (cache.current.size > 32) { const oldest = cache.current.keys().next().value; if (oldest) { URL.revokeObjectURL(cache.current.get(oldest)!); cache.current.delete(oldest); } }
@@ -329,7 +326,6 @@ export default function ReadingRoom() {
             {voiceMessage && <p className="connection-note" role="status">{voiceMessage}</p>}
             <p className="fine-print">AI narration by ElevenLabs · Your voice choice is remembered.</p>
             {audioError && <p className="inline-error" role="alert">{audioError}</p>}
-            {needsCode && <button className="subtle-button listening-code" onClick={() => setModal("code")}>{accessCode ? "Change listening code" : "Enter listening code"}</button>}
             <div className="listen-transcript" style={{ fontSize: textSize }}><h2>Read along</h2><small>Complete article · {wordCount.toLocaleString()} words</small>{article.paragraphs.map((text, i) => <p key={i}>{text}</p>)}</div>
           </div>}
           <div className="page-bottom"><button disabled={!!pendingStory} onClick={() => toggleSaved(article.id)}><Bookmark size={13} fill={saved.includes(article.id) ? "currentColor" : "none"} />{saved.includes(article.id) ? "Bookmarked" : "Keep this read"}</button><span>II</span></div>
@@ -344,7 +340,7 @@ export default function ReadingRoom() {
       <footer className="room-footer"><span>A collection of curious reads.</span><button onClick={closeBook}>Close the book <BookOpen size={12} /></button></footer>
     </>}
     {toast && <div className="toast" role="status"><Check size={15} />{toast}</div>}
-    {modal && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !importing) setModal(null); }}><Dialog onClose={() => { if (!importing) setModal(null); }} title={modal === "import" ? "Bring a story into your room" : modal === "code" ? "Your listening invitation" : "A little room for curiosity"}>
+    {modal && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !importing) setModal(null); }}><Dialog onClose={() => { if (!importing) setModal(null); }} title={modal === "import" ? "Bring a story into your room" : "A little room for curiosity"}>
       {modal === "import" ? <form onSubmit={importArticle}>
         <p>Found something worth slowing down for? Tuck it into your collection.</p>
         <div className="import-tabs"><button type="button" className={importMode === "link" ? "active" : ""} onClick={() => { setImportMode("link"); setImportError(""); }}><Link2 size={14} />Article link</button><button type="button" className={importMode === "text" ? "active" : ""} onClick={() => { setImportMode("text"); setImportError(""); }}>Paste text</button></div>
@@ -352,7 +348,7 @@ export default function ReadingRoom() {
         <p className="fine-print">Saved only in this browser. When you press play, the text is sent to ElevenLabs for narration. Add content you have permission to use.</p>
         {importError && <p className="inline-error" role="alert">{importError}</p>}
         <button className="primary-button" disabled={importing} type="submit">{importing ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{importing ? "Opening the article…" : "Add to my collection"}</button>
-      </form> : modal === "code" ? <form onSubmit={e => { e.preventDefault(); setModal(null); setToast("Listening code saved for this session. Press play when ready."); }}><p>Enter the prototype code shared by the room’s owner.</p><label className="form-label">Listening code<input type="password" required autoFocus value={accessCode} onChange={e => setAccessCode(e.target.value)} /></label><button className="primary-button">Save listening code <ArrowRight size={16} /></button></form> : <div className="about-copy"><p>A quiet corner of the internet, for ideas that deserve a little more of your time.</p><p>Explore technology, medicine, Nobel discoveries, AI and crypto. Keep a favourite, bring your own link, or let a storyteller read it to you.</p><p>This free prototype contains original sample essays. Popular today shows recent stories ranked on Hacker News. Other publication links open at their source.</p><span className="handwriting">Make yourself at home.</span><button className="primary-button" onClick={() => { setModal(null); openBook(); }}>Open the book <ArrowRight size={16} /></button></div>}
+      </form> : <div className="about-copy"><p>A quiet corner of the internet, for ideas that deserve a little more of your time.</p><p>Explore technology, medicine, Nobel discoveries, AI and crypto. Keep a favourite, bring your own link, or let a storyteller read it to you.</p><p>This free prototype contains original sample essays. Popular today shows recent stories ranked on Hacker News. Other publication links open at their source.</p><span className="handwriting">Make yourself at home.</span><button className="primary-button" onClick={() => { setModal(null); openBook(); }}>Open the book <ArrowRight size={16} /></button></div>}
     </Dialog></div>}
   </main>;
 }

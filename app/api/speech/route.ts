@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
 import { guardRequest, readBody } from "@/lib/server";
 import { getVoices } from "@/lib/voices";
 export const runtime = "nodejs";
@@ -8,13 +7,6 @@ export async function POST(req: NextRequest) {
   const rejected = guardRequest(req, "speech", 20);
   if (rejected) return rejected;
   if (!process.env.ELEVENLABS_API_KEY) return NextResponse.json({ error: "Connect ElevenLabs in the server environment to enable narration." }, { status: 503 });
-  const code = process.env.PROTOTYPE_ACCESS_CODE;
-  if (process.env.VERCEL && !code) return NextResponse.json({ error: "Set a prototype access code before enabling narration on Vercel." }, { status: 503 });
-  if (code) {
-    const received = Buffer.from(req.headers.get("x-prototype-code") ?? "");
-    const expected = Buffer.from(code);
-    if (received.length !== expected.length || !timingSafeEqual(received, expected)) return NextResponse.json({ error: "Enter the prototype listening code to enable narration." }, { status: 401 });
-  }
   try {
     const { text, voiceId } = await readBody(req, 15_000);
     if (typeof text !== "string" || !text.trim() || text.length > 3000 || typeof voiceId !== "string") return NextResponse.json({ error: "Choose a voice and a section of up to 3,000 characters." }, { status: 400 });

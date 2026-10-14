@@ -23,13 +23,12 @@ Set these server environment variables in `.env.local` or Vercel:
 | `ELEVENLABS_API_KEY` | Your ElevenLabs API key; never use a `NEXT_PUBLIC_` prefix. |
 | `ELEVENLABS_VOICE_IDS` | A comma-separated list of 3–4 voice IDs accessible to your account. If empty, the app loads the first four available account voices. |
 | `ELEVENLABS_MODEL_ID` | Defaults to `eleven_multilingual_v2`. |
-| `PROTOTYPE_ACCESS_CODE` | An owner-chosen listening code. Required for paid narration on Vercel; enter it through the app's listening dialog. |
 
 Get voice IDs from the [ElevenLabs voices endpoint](https://elevenlabs.io/docs/api-reference/voices/get-all). The interface uses real provider names and preview URLs. The four mood cards before configuration are placeholders, not generated voices. No credentials are entered into the UI or committed to the repository.
 
 Narration is generated only when play is pressed, in sections under 3,000 characters, and continues through the full article. Audio is cached in memory for the current browser session; reloading can incur another generation charge. Changing voices restarts the current section. Reading position and current audio section/time are stored locally. Playback speed and seeking apply to the current section. This prototype has no persistent server audio storage or word highlighting.
 
-API billing remains separate from making the app free for readers. The access code gates paid requests; the in-memory rate limiter is only a per-instance throttle, not a distributed quota. Set provider spending limits and keep the preview restricted. Before a broad public launch, add individual authentication and a persistent per-user usage ledger.
+API billing remains separate from making the app free for readers. Users choose a narrator and press Play without a listening code. The server retains the API key, validates voice access and article length, and limits requests per IP per instance; this is not a distributed usage quota. Set provider spending limits for your public prototype. Before a broad public launch, add individual authentication and a persistent per-user usage ledger.
 
 ## Deploy on Vercel
 

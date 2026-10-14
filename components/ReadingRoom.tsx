@@ -5,15 +5,11 @@ import { ArrowLeft, ArrowRight, Bookmark, Check, ChevronLeft, ChevronRight, Exte
 import { articles as starterArticles } from "@/lib/articles";
 import { topics, type Article, type FeedStory, type Topic, type Voice } from "@/lib/types";
 import { splitNarration } from "@/lib/audio";
+import { narratorCatalog } from "@/lib/narrators";
 import { paginateArticle } from "@/lib/reading";
 import TurningPage from "./TurningPage";
 import MovingCover, { type CoverHome } from "./MovingCover";
-const narratorCards = [
-  { name: "Roger", description: "Laid-back & resonant" },
-  { name: "Sarah", description: "Warm & expressive" },
-  { name: "Laura", description: "Clear & gentle" },
-  { name: "Charlie", description: "Natural & conversational" },
-];
+
 
 const STORE = "reading-room-v1";
 const sourceShelves = [
@@ -71,8 +67,9 @@ export default function ReadingRoom() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedError, setFeedError] = useState("");
   const [feedTime, setFeedTime] = useState("");
-  const [voices, setVoices] = useState<Voice[]>([]);
-  const [voiceId, setVoiceId] = useState("");
+  const [voices, setVoices] = useState<Voice[]>(narratorCatalog);
+  const [voiceId, setVoiceId] = useState(narratorCatalog[0].id);
+  const [voiceConnected, setVoiceConnected] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
   const [needsCode, setNeedsCode] = useState(false);
   const [accessCode, setAccessCode] = useState("");
@@ -112,14 +109,17 @@ export default function ReadingRoom() {
         setSaved(Array.isArray(data.saved) ? data.saved : []);
         positions.current = data.positions ?? {};
         savedVoice.current = data.voiceId ?? "";
+        if (narratorCatalog.some(v => v.id === savedVoice.current)) setVoiceId(savedVoice.current);
         if (data.selectedId) { setSelectedId(data.selectedId); setPage(data.positions?.[data.selectedId]?.page ?? 0); setChunkIndex(data.positions?.[data.selectedId]?.chunk ?? 0); setAudioTime(data.positions?.[data.selectedId]?.time ?? 0); }
         if ([17, 19, 21].includes(data.textSize)) setTextSize(data.textSize);
       }
     } catch { /* A clean collection is usable if storage is unavailable. */ }
     setReady(true);
     fetch("/api/voices").then(r => r.json()).then(data => {
-      setVoices(data.voices ?? []); setVoiceId(data.voices?.find((v: Voice) => v.id === savedVoice.current)?.id ?? data.voices?.[0]?.id ?? "");
-      setNeedsCode(!!data.requiresAccessCode); setVoiceMessage(data.error ?? "");
+      const available: Voice[] = data.voices?.length ? data.voices : narratorCatalog;
+      setVoices(available); setVoiceId(available.find(v => v.id === savedVoice.current)?.id ?? available[0].id);
+      setVoiceConnected(!!data.configured && !!data.voices?.length);
+      setNeedsCode(!!data.requiresAccessCode); setVoiceMessage(data.error ?? (!data.configured ? "Choose and preview a storyteller. Article listening is not connected yet." : ""));
     }).catch(() => setVoiceMessage("Narrator voices could not be loaded. Please try again later."));
     return () => { storySequence.current++; controller.current?.abort(); audioRef.current?.pause(); previewRef.current?.pause(); for (const src of cache.current.values()) URL.revokeObjectURL(src); };
   }, []);
@@ -208,7 +208,7 @@ export default function ReadingRoom() {
     finally { setImporting(false); }
   }
   async function playChunk(index: number, from = 0) {
-    if (!voices.length) { setAudioError("Narration is waiting for an ElevenLabs connection. You can still read every article."); return; }
+    if (!voiceConnected) { setAudioError("Article listening is not connected yet. Your storyteller choice has been saved."); return; }
     if (needsCode && !accessCode) { setModal("code"); return; }
     if (!chunks[index]) return;
     const version = ++sequence.current;
@@ -245,7 +245,7 @@ export default function ReadingRoom() {
     else if (audioRef.current && audioRef.current.currentTime < audioRef.current.duration) void audioRef.current.play().catch(() => setAudioError("Press play again to resume listening."));
     else void playChunk(chunkIndex, audioTime);
   }
-  function selectVoice(id: string) { stopAudio(); audioRef.current = null; setVoiceId(id); setAudioTime(0); setAudioDuration(0); }
+  function selectVoice(id: string) { savedVoice.current = id; stopAudio(); audioRef.current = null; setVoiceId(id); setAudioTime(0); setAudioDuration(0); }
   function previewVoice(voice: Voice) {
     if (!voice.previewUrl) { setAudioError("No preview is available for this voice. Choose it to hear the article."); return; }
     if (previewing === voice.id) { previewRef.current?.pause(); setPreviewing(""); return; }
@@ -325,10 +325,8 @@ export default function ReadingRoom() {
           </> : <div className="listen-panel" tabIndex={0} aria-label="Narration settings and full article text">
             <p className="listen-description">{article.description}</p><img className="page-rule" src="/assets/rule.svg" alt="" />
             <div className="voice-heading"><span className="handwriting">choose your storyteller</span><Headphones size={18} /></div>
-            {voices.length ? <div className="voice-options" role="radiogroup" aria-label="Narrator voices">{voices.map(v => <div className={`voice-option ${voiceId === v.id ? "chosen" : ""}`} key={v.id}><button role="radio" aria-checked={voiceId === v.id} onClick={() => selectVoice(v.id)}><span className="radio-dot">{voiceId === v.id && <span />}</span><span>{v.name}<small>{v.description}</small></span></button><button className="voice-preview" onClick={() => previewVoice(v)} aria-label={`${previewing === v.id ? "Stop" : "Preview"} ${v.name}`}>{previewing === v.id ? <Pause size={14} /> : <Volume2 size={14} />}</button></div>)}</div> : <>
-              <div className="voice-options pending">{narratorCards.map(narrator => <div className="voice-option" key={narrator.name}><span className="radio-dot" /><span>{narrator.name}<small>{narrator.description}</small></span><Headphones size={14} /></div>)}</div>
-              <p className="connection-note">{voiceMessage || "Your four storytellers are waiting. Connect ElevenLabs to choose and preview real voices."}</p>
-            </>}
+            <div className="voice-options" role="radiogroup" aria-label="Narrator voices">{voices.map(v => <div className={`voice-option ${voiceId === v.id ? "chosen" : ""}`} key={v.id}><button role="radio" aria-checked={voiceId === v.id} onClick={() => selectVoice(v.id)}><span className="radio-dot">{voiceId === v.id && <span />}</span><span>{v.name}<small>{v.description}</small></span></button><button className="voice-preview" onClick={() => previewVoice(v)} aria-label={`${previewing === v.id ? "Stop" : "Preview"} ${v.name}`}>{previewing === v.id ? <Pause size={14} /> : <Volume2 size={14} />}</button></div>)}</div>
+            {voiceMessage && <p className="connection-note" role="status">{voiceMessage}</p>}
             <p className="fine-print">AI narration by ElevenLabs · Your voice choice is remembered.</p>
             {audioError && <p className="inline-error" role="alert">{audioError}</p>}
             {needsCode && <button className="subtle-button listening-code" onClick={() => setModal("code")}>{accessCode ? "Change listening code" : "Enter listening code"}</button>}

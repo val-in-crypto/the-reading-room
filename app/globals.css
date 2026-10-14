@@ -16,10 +16,16 @@
 .opened .book-spread{animation:none}
 .book-opening .book-art,.book-closing .book-art,.book-opening .book-spread,.book-closing .book-spread{animation:none}
 .book-opening .book-spread>.left-page,.book-opening .book-spread>.right-page,.book-closing .book-spread>.left-page,.book-closing .book-spread>.right-page{visibility:hidden}
-.cover-engine-stage{position:absolute;left:9.5%;top:10.5%;width:81.4%;height:85%;z-index:12;pointer-events:none}
+.cover-engine-stage{position:absolute;left:6.8%;top:9%;width:86.8%;height:89%;z-index:12;pointer-events:none}
 .cover-engine-host{width:100%;height:100%;opacity:0}
 .cover-engine-stage.ready .cover-engine-host{opacity:1}
 .cover-engine-host .stf__item{box-shadow:0 4px 14px #34201124}
+/* The hardcover includes the red binding outside the paper's smaller bounds. */
+.cover-engine-stage .turn-leaf{background-color:transparent;background-size:230.415% 123.663%;background-position:12.014% 42.877%;border-radius:7px 3px 3px 7px}
+.cover-engine-stage .turn-leaf.right{background-position:88.692% 42.877%;border-radius:3px 7px 7px 3px}
+.cover-engine-stage .turn-leaf>.left-page,.cover-engine-stage .turn-leaf>.right-page{top:4.157%;bottom:8.09%;width:77.188%}
+.cover-engine-stage .turn-leaf>.left-page{left:15.553%}
+.cover-engine-stage .turn-leaf>.right-page{left:7.834%}
 .book-opening .room-toolbar,.book-opening .mobile-switch,.book-opening .audio-dock,.book-opening .room-footer{animation:room-controls-reveal 1.6s ease both}
 .book-closing .audio-dock,.book-closing .room-footer{opacity:0;transition:opacity .2s}
 @keyframes room-controls-reveal{0%,60%{opacity:0}100%{opacity:1}}
@@ -35,7 +41,7 @@
 .turn-leaf>.left-page,.turn-leaf>.right-page{top:2.588%;bottom:5.529%;width:82.31%;height:auto;transform:none}
 .turn-leaf>.left-page{left:9.95%}
 .turn-leaf>.right-page{left:8.354%}
-@media(max-width:800px){.cover-engine-stage{left:-100%;top:0;width:200%;height:100%}.natural-page-turn{left:-100%;top:0;width:200%;height:100%}.turn-leaf>.left-page,.turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.turn-leaf{background:#f2e5cb}}
+@media(max-width:800px){.cover-engine-stage{left:-100%;top:0;width:200%;height:100%}.cover-engine-stage .turn-leaf>.left-page,.cover-engine-stage .turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.cover-engine-stage .turn-leaf{background:var(--paper);border:2px solid #79271f}.natural-page-turn{left:-100%;top:0;width:200%;height:100%}.turn-leaf>.left-page,.turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.turn-leaf{background:#f2e5cb}}
 .reading-scroll,.listen-panel{overflow-y:scroll;overflow-x:hidden;scrollbar-gutter:stable;scrollbar-width:auto;overscroll-behavior:contain;padding-right:16px;min-width:0;scrollbar-color:auto}
 .reading-scroll::-webkit-scrollbar,.listen-panel::-webkit-scrollbar{width:8px}
 .reading-scroll::-webkit-scrollbar-track,.listen-panel::-webkit-scrollbar-track{background:#d7bb9244;border-radius:8px}

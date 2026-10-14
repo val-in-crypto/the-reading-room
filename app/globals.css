@@ -113,3 +113,17 @@ button.story-title{display:block;text-align:left;padding:0;line-height:1.25}
 .opened .reading-scroll .collage-illustration{height:clamp(76px,14vh,132px);aspect-ratio:auto;margin-bottom:14px}
 @media(max-width:800px){.closed .open-invitation{left:calc(50% + 80px);top:76%}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* A clipped single leaf keeps the phone opening within its reading frame. */
+.book-opening .book-spread,.book-closing .book-spread{pointer-events:none}
+.mobile-cover-window{position:absolute;inset:0;overflow:hidden;perspective:1200px;border-radius:2px}
+.mobile-cover-ink{position:absolute;inset:0;background:var(--paper)}
+.mobile-cover-ink>.left-page,.mobile-cover-ink>.right-page{position:absolute;inset:0;width:100%;height:100%;visibility:visible}
+.mobile-hinged-cover{position:absolute;inset:0;transform-origin:left center;transform-style:preserve-3d;will-change:transform}
+.mobile-cover-front,.mobile-cover-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.mobile-cover-back{transform:rotateY(180deg);background:linear-gradient(90deg,#b69b6f,#f8edd7 9%);border:2px solid #79271f}
+.mobile-cover-front{box-shadow:8px 0 18px #34201133}
+@media(max-width:800px){
+  .cover-engine-stage{left:0;top:0;width:100%;height:100%}
+  .book-opening .room-toolbar,.book-opening .mobile-switch,.book-opening .audio-dock,.book-opening .room-footer{animation-duration:1.25s}
+}

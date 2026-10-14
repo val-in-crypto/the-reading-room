@@ -8,7 +8,12 @@ import { splitNarration } from "@/lib/audio";
 import { paginateArticle } from "@/lib/reading";
 import TurningPage from "./TurningPage";
 import MovingCover, { type CoverHome } from "./MovingCover";
-const voiceMoods = ["Warm & gentle", "Deep & calm", "Bright & expressive", "Clear & thoughtful"];
+const narratorCards = [
+  { name: "Roger", description: "Laid-back & resonant" },
+  { name: "Sarah", description: "Warm & expressive" },
+  { name: "Laura", description: "Clear & gentle" },
+  { name: "Charlie", description: "Natural & conversational" },
+];
 
 const STORE = "reading-room-v1";
 const sourceShelves = [
@@ -321,7 +326,7 @@ export default function ReadingRoom() {
             <p className="listen-description">{article.description}</p><img className="page-rule" src="/assets/rule.svg" alt="" />
             <div className="voice-heading"><span className="handwriting">choose your storyteller</span><Headphones size={18} /></div>
             {voices.length ? <div className="voice-options" role="radiogroup" aria-label="Narrator voices">{voices.map(v => <div className={`voice-option ${voiceId === v.id ? "chosen" : ""}`} key={v.id}><button role="radio" aria-checked={voiceId === v.id} onClick={() => selectVoice(v.id)}><span className="radio-dot">{voiceId === v.id && <span />}</span><span>{v.name}<small>{v.description}</small></span></button><button className="voice-preview" onClick={() => previewVoice(v)} aria-label={`${previewing === v.id ? "Stop" : "Preview"} ${v.name}`}>{previewing === v.id ? <Pause size={14} /> : <Volume2 size={14} />}</button></div>)}</div> : <>
-              <div className="voice-options pending">{voiceMoods.map((mood, i) => <div className="voice-option" key={mood}><span className="radio-dot" /><span>Narrator {i + 1}<small>{mood}</small></span><Headphones size={14} /></div>)}</div>
+              <div className="voice-options pending">{narratorCards.map(narrator => <div className="voice-option" key={narrator.name}><span className="radio-dot" /><span>{narrator.name}<small>{narrator.description}</small></span><Headphones size={14} /></div>)}</div>
               <p className="connection-note">{voiceMessage || "Your four storytellers are waiting. Connect ElevenLabs to choose and preview real voices."}</p>
             </>}
             <p className="fine-print">AI narration by ElevenLabs · Your voice choice is remembered.</p>

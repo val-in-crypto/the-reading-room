@@ -7,6 +7,7 @@ import { topics, type Article, type FeedStory, type Topic, type Voice } from "@/
 import { splitNarration } from "@/lib/audio";
 import { narratorCatalog } from "@/lib/narrators";
 import { paginateArticle } from "@/lib/reading";
+import ArticleSpread from "./ArticleSpread";
 import TurningPage from "./TurningPage";
 import MovingCover, { type CoverHome } from "./MovingCover";
 
@@ -39,6 +40,7 @@ export default function ReadingRoom() {
   const [pageTurn, setPageTurn] = useState<"next" | "previous" | null>(null);
   const [turningPage, setTurningPage] = useState(0);
   const [fullText, setFullText] = useState(true);
+  const [wideBook, setWideBook] = useState(false);
   const [openingStory, setOpeningStory] = useState("");
   const [pendingStory, setPendingStory] = useState<FeedStory | null>(null);
   const [storyError, setStoryError] = useState<{ id: string; message: string; url: string } | null>(null);
@@ -94,6 +96,18 @@ export default function ReadingRoom() {
   const chunks = useMemo(() => splitNarration(article.paragraphs), [article]);
   useEffect(() => { setPageTurn(null); }, [mode]);
   const pages = useMemo(() => paginateArticle(article.paragraphs), [article]);
+  const articleSpread = wideBook && !fullText && mode === "read" && !pendingStory;
+  useEffect(() => {
+    const media = matchMedia("(min-width:801px)");
+    const update = () => { setWideBook(media.matches); setPageTurn(null); };
+    update(); media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  useEffect(() => { if (wideBook && !fullText) setPage(p => p - p % 2); }, [wideBook, fullText]);
+  function spreadContent(index: number) {
+    return <ArticleSpread article={article} pages={pages} page={index} textSize={textSize} busy={!!pageTurn} saved={saved.includes(article.id)} onTurn={turnPage} onExit={() => { setPageTurn(null); setFullText(true); setPage(0); }} onListen={() => setMode("listen")} onTextSize={setTextSize} onBookmark={() => toggleSaved(article.id)} />;
+  }
+
   const wordCount = article.paragraphs.join(" ").split(/\s+/).filter(Boolean).length;
   const visible = allArticles.filter(a => (topic === "All" || a.topic === topic) && (shelf !== "saved" || saved.includes(a.id)) && `${a.title} ${a.description} ${a.source}`.toLowerCase().includes(search.toLowerCase()));
   const recentStories = stories.filter(a => Date.now() - new Date(a.publishedAt).getTime() <= 24 * 60 * 60_000);
@@ -273,14 +287,15 @@ export default function ReadingRoom() {
       <p className="cover-footnote">READ SOMETHING GOOD. HEAR IT IN A VOICE YOU LOVE.</p>
     </section> : <>
       <div className="room-toolbar">
-        <div className="shelf-tabs" role="tablist" aria-label="Article shelves">{([ ["collection", "The collection"], ["today", "Popular today"], ["saved", "My bookmarks"] ] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={shelf === id} onClick={() => { setShelf(id); setMobilePage("contents"); }}>{label}{id === "saved" && saved.length > 0 && <span>{saved.length}</span>}</button>)}</div>
+        <div className="shelf-tabs" role="tablist" aria-label="Article shelves">{([ ["collection", "The collection"], ["today", "Popular today"], ["saved", "My bookmarks"] ] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={shelf === id} onClick={() => { setShelf(id); setFullText(true); setPageTurn(null); setMobilePage("contents"); }}>{label}{id === "saved" && saved.length > 0 && <span>{saved.length}</span>}</button>)}</div>
         <span className="room-tagline">a little room for big ideas</span>
       </div>
       <div className="mobile-switch"><button onClick={() => setMobilePage("contents")} className={mobilePage === "contents" ? "active" : ""}>Contents</button><button onClick={() => setMobilePage("article")} className={mobilePage === "article" ? "active" : ""}>Your read</button></div>
-      <section className="book-spread" id="main-content" aria-label="Open reading book">
+      <section className={`book-spread ${articleSpread ? "article-spread" : ""}`} id="main-content" aria-label="Open reading book">
         <div className="book-art" aria-hidden="true"><img src="/assets/book.png" alt="" /></div>
         {bookMotion && <MovingCover direction={bookMotion} home={coverHome.current} onComplete={() => { if (bookMotion === "closing") setOpened(false); setBookMotion(null); }} />}
-        {pageTurn && <TurningPage direction={pageTurn} paragraphs={pages[turningPage] ?? []} targetPage={turningPage} totalPages={pages.length} illustration={article.kind !== "imported" ? article.illustration : undefined} onComplete={() => { setPage(turningPage); setPageTurn(null); reading.current?.scrollTo({ top: 0 }); }} />}
+        {pageTurn && <TurningPage targetSpread={articleSpread ? spreadContent(turningPage) : undefined} direction={pageTurn} paragraphs={pages[turningPage] ?? []} targetPage={turningPage} totalPages={pages.length} illustration={article.kind !== "imported" ? article.illustration : undefined} onComplete={() => { setPage(turningPage); setPageTurn(null); reading.current?.scrollTo({ top: 0 }); }} />}
+        {articleSpread ? spreadContent(page) : <>
         <section className={`left-page ${mobilePage !== "contents" ? "mobile-hidden" : ""}`} aria-label="Article collection">
           <div className="page-heading"><span className="handwriting">{shelf === "today" ? "what's stirring today" : shelf === "saved" ? "reads to come back to" : "a collection of curious reads"}</span><span className="folio">I</span></div>
           <div className="topic-list" aria-label="Topics">{topics.map(t => <button key={t} onClick={() => setTopic(t)} aria-pressed={topic === t}>{t}</button>)}</div>
@@ -330,6 +345,7 @@ export default function ReadingRoom() {
           </div>}
           <div className="page-bottom"><button disabled={!!pendingStory} onClick={() => toggleSaved(article.id)}><Bookmark size={13} fill={saved.includes(article.id) ? "currentColor" : "none"} />{saved.includes(article.id) ? "Bookmarked" : "Keep this read"}</button><span>II</span></div>
         </section>
+        </>}
       </section>
       <section className="audio-dock" aria-label="Audio player">
         <div className="audio-controls"><button className="dock-icon" aria-label="Choose a narrator" onClick={() => { setMode("listen"); setMobilePage("article"); }}><img src="/assets/headphones.svg" alt="" /></button><button className="skip-audio" aria-label="Back 15 seconds" disabled={!audioRef.current} onClick={() => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 15); }}><SkipBack size={18} /><small>15</small></button><button className="main-play" aria-label={generating ? "Cancel audio generation" : playing ? "Pause narration" : "Play narration"} onClick={togglePlay} disabled={!!pendingStory}>{generating ? <LoaderCircle className="spin" size={32} /> : playing ? <Pause size={22} fill="currentColor" /> : <img src="/assets/play.svg" alt="" />}</button><button className="skip-audio" aria-label="Forward 15 seconds" disabled={!audioRef.current} onClick={() => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 15); }}><SkipForward size={18} /><small>15</small></button><button className="dock-icon" aria-label="Share article" onClick={() => void shareArticle()}><img src="/assets/share.svg" alt="" /></button></div>

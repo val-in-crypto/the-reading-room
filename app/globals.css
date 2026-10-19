@@ -127,3 +127,19 @@ button.story-title{display:block;text-align:left;padding:0;line-height:1.25}
   .cover-engine-stage{left:0;top:0;width:100%;height:100%}
   .book-opening .room-toolbar,.book-opening .mobile-switch,.book-opening .audio-dock,.book-opening .room-footer{animation-duration:1.25s}
 }
+
+/* Consecutive article leaves replace the shelf while reading a desktop spread. */
+.spread-tools{display:flex;align-items:center;justify-content:space-between;min-height:24px;margin-bottom:10px;font-size:10px;color:var(--muted)}
+.spread-tools>button{display:flex;align-items:center;gap:5px;padding:0}
+.spread-tools .text-controls{margin-left:auto;display:flex;gap:8px}
+.spread-article-page .page-heading{margin-bottom:10px}
+.spread-title{font-family:var(--serif);font-size:clamp(24px,3.6vh,34px);font-weight:400;font-style:italic;line-height:1.08;margin:0 0 8px}
+.spread-article-page .byline{margin-bottom:12px;font-size:9px}
+.spread-text{flex:1;line-height:1.45}
+.spread-text .illustration{height:72px;margin-bottom:12px}
+.spread-article-page .reading-pagination{margin-top:10px;min-height:26px}
+.spread-article-page .page-bottom{margin-top:7px}
+.spread-end{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100%;text-align:center;color:var(--muted)}
+.spread-end p{font-family:var(--serif);font-size:17px}
+
+.spread-continuation-title{font-size:18px;line-height:1.25;margin-bottom:16px;color:var(--muted)}

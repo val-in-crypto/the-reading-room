@@ -1,26 +1,29 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { PageFlip } from "page-flip";
 
 /** A real corner fold, with the current reader printed on the moving sheet. */
-export default function TurningPage({ direction, paragraphs, targetPage, totalPages, illustration, onComplete }: {
+export default function TurningPage({ direction, paragraphs, targetPage, totalPages, illustration, targetSpread, onComplete }: {
   direction: "next" | "previous";
   paragraphs: string[];
   targetPage: number;
   totalPages: number;
   illustration?: string;
+  targetSpread?: ReactNode;
   onComplete: () => void;
 }) {
   const stage = useRef<HTMLDivElement>(null);
+  const target = useRef<HTMLDivElement>(null);
+  const spreadMode = !!targetSpread;
   const complete = useRef(onComplete);
   complete.current = onComplete;
 
   useEffect(() => {
     const root = stage.current;
     const spread = root?.closest(".book-spread");
-    const left = spread?.querySelector<HTMLElement>(".left-page");
-    const right = spread?.querySelector<HTMLElement>(".right-page");
+    const left = spread?.querySelector<HTMLElement>(":scope > .left-page");
+    const right = spread?.querySelector<HTMLElement>(":scope > .right-page");
     if (!root || !left || !right) return;
     let disposed = false;
     let engine: PageFlip | undefined;
@@ -65,9 +68,13 @@ export default function TurningPage({ direction, paragraphs, targetPage, totalPa
     const scrollPosition = right.querySelector(".reading-scroll")?.scrollTop ?? 0;
     const current = snapshot(right, "right");
     const destination = snapshot(right, "right", true);
+    const nextLeft = target.current?.querySelector<HTMLElement>(".left-page");
+    const nextRight = target.current?.querySelector<HTMLElement>(".right-page");
+    const targetLeft = nextLeft ? snapshot(nextLeft, "left") : snapshot(left, "left");
+    const targetRight = nextRight ? snapshot(nextRight, "right") : destination;
     const leaves = direction === "next"
-      ? [snapshot(left, "left"), current, snapshot(left, "left"), destination]
-      : [snapshot(left, "left"), destination, snapshot(left, "left"), current];
+      ? [snapshot(left, "left"), current, targetLeft, targetRight]
+      : [targetLeft, targetRight, snapshot(left, "left"), current];
     host.append(...leaves);
 
     void import("page-flip").then(({ PageFlip }) => {
@@ -105,7 +112,7 @@ export default function TurningPage({ direction, paragraphs, targetPage, totalPa
       engine?.destroy();
       host.remove();
     };
-  }, [direction, paragraphs, targetPage, totalPages, illustration]);
+  }, [direction, paragraphs, targetPage, totalPages, illustration, spreadMode]);
 
-  return <div ref={stage} className="natural-page-turn" aria-hidden="true" />;
+  return <><div ref={stage} className="natural-page-turn" aria-hidden="true" /><div ref={target} hidden aria-hidden="true">{targetSpread}</div></>;
 }

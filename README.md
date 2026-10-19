@@ -43,7 +43,7 @@ There is no database requirement for this prototype. Bookmarks, imports and prog
 
 - Animated opening cue, hinged cover transitions and forward/backward page turns; one-page mobile reader.
 - Tech, Medicine, Nobel Prizes, AI and Crypto topics; collection search.
-- Complete article text by default, an optional animated Pages view, bookmarks, text size and saved reading/listening positions.
+- Complete article text by default; an animated Pages view with consecutive article pages across both sides on desktop and one page at a time on phones; bookmarks, text size and saved reading/listening positions.
 - Import a public HTTPS article link; paste text when extraction fails.
 - Three or four configured ElevenLabs voices, previews, section-based audio playback and a complete Read along transcript.
 - A live **Popular today** shelf: Hacker News top stories submitted within the last 24 hours, with actual HN points and discussion links. Story titles load full readable publisher text directly into the app. Blocked pages offer a paste-text fallback.

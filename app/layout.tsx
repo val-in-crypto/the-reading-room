@@ -7,6 +7,7 @@ import "@fontsource/dm-sans/500.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  icons: { icon: [{ url: "/favicon.svg", type: "image/svg+xml" }, { url: "/favicon-32.png", sizes: "32x32", type: "image/png" }], shortcut: "/favicon.ico" },
   title: "The Reading Room — A collection of curious reads",
   description: "A quiet place for curious minds. Read, collect, and listen to articles in a voice you love.",
 };

@@ -12,7 +12,7 @@ export default function ArticleSpread({ article, pages, page, textSize, busy, sa
     const index = page + offset;
     const exists = index < pages.length;
     return <section className={`${offset === 0 ? "left" : "right"}-page spread-article-page`} aria-label={exists ? `Article page ${index + 1}` : "End of article"} key={index}>
-      <div className="spread-tools">{offset === 0 ? <button onClick={onExit}><ArrowLeft size={13} />Back to collection</button> : <><button onClick={onListen}><Headphones size={13} />Listen</button><div className="text-controls"><button aria-label="Decrease text size" disabled={textSize <= 17} onClick={() => onTextSize(textSize - 2)}>A−</button><button aria-label="Increase text size" disabled={textSize >= 21} onClick={() => onTextSize(textSize + 2)}>A+</button></div></>}</div>
+      <div className="spread-tools">{offset === 0 ? <button onClick={onExit}><ArrowLeft size={13} />Back to collection</button> : <><button onClick={onListen}><Headphones size={13} />Listen</button><div className="text-controls"><button aria-label="Decrease text size" disabled={textSize <= 18} onClick={() => onTextSize(textSize - 2)}>A−</button><button aria-label="Increase text size" disabled={textSize >= 22} onClick={() => onTextSize(textSize + 2)}>A+</button></div></>}</div>
       <div className="page-heading"><span className="article-category">{article.topic}</span><span className="handwriting read-length">{index === 0 ? `${article.minutes} min read` : "continued"}</span></div>
       <h2 className={`spread-title ${offset ? "spread-continuation-title" : ""}`}>{article.title}</h2>
       {offset === 0 && <p className="byline">{article.author} · {article.kind === "editorial" ? "Prototype essay" : article.source}</p>}

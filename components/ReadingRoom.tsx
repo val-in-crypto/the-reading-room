@@ -54,7 +54,7 @@ export default function ReadingRoom() {
   const [shelf, setShelf] = useState<"collection" | "today" | "saved">("collection");
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<"read" | "listen">("read");
-  const [textSize, setTextSize] = useState(17);
+  const [textSize, setTextSize] = useState(20);
   const [page, setPage] = useState(0);
   const [mobilePage, setMobilePage] = useState<"contents" | "article">("contents");
   const [modal, setModal] = useState<"import" | "about" | null>(null);
@@ -123,7 +123,7 @@ export default function ReadingRoom() {
         savedVoice.current = data.voiceId ?? "";
         if (narratorCatalog.some(v => v.id === savedVoice.current)) setVoiceId(savedVoice.current);
         if (data.selectedId) { setSelectedId(data.selectedId); setPage(data.positions?.[data.selectedId]?.page ?? 0); setChunkIndex(data.positions?.[data.selectedId]?.chunk ?? 0); setAudioTime(data.positions?.[data.selectedId]?.time ?? 0); }
-        if ([17, 19, 21].includes(data.textSize)) setTextSize(data.textSize);
+        if ([18, 20, 22].includes(data.textSize)) setTextSize(data.textSize);
       }
     } catch { /* A clean collection is usable if storage is unavailable. */ }
     setReady(true);
@@ -276,7 +276,7 @@ export default function ReadingRoom() {
   return <main className={`${opened ? "room opened" : "room closed"} ${bookMotion ? `book-${bookMotion}` : ""}`}>
     <a className="skip-link" href="#main-content">Skip to reading room</a>
     <header className="site-header">
-      <button className="brand" aria-label="Close the book" onClick={closeBook}><img src="/assets/logo.svg" alt="reading room" /></button>
+      <button className="brand" aria-label="Close the book" onClick={closeBook}>The Reading Room</button>
       <nav aria-label="Main navigation"><button className="subtle-button" onClick={() => setModal("about")}>A little about us</button><button className="add-button" onClick={() => openImport()}><Plus size={16} />Add an article</button></nav>
     </header>
     {!opened ? <section className="cover-scene" id="main-content" aria-label="Welcome to the Reading Room">
@@ -312,7 +312,7 @@ export default function ReadingRoom() {
               <div className="source-shelf"><h3>Other doors into discovery</h3>{sourceShelves.map(({ name, topic: label, url: link, Icon }) => <a key={name} href={link} target="_blank" rel="noopener noreferrer"><Icon size={16} /><span>{name}<small>{label}</small></span><ExternalLink size={12} /></a>)}</div>
             </> : <>
               {visible.map(a => <div className={`article-row ${article.id === a.id ? "selected" : ""}`} key={a.id}>
-                <button className="article-select" onClick={() => chooseArticle(a)}><Illustration type={a.illustration} small /><span><span className="article-row-title">{a.title}</span><span className="article-meta">{a.topic}<img src="/assets/dot.svg" alt="" />{a.minutes} min read</span>{a.kind === "imported" && <span className="personal-tag">From your links</span>}</span></button>
+                <button className="article-select" onClick={() => chooseArticle(a)}><Illustration type={a.illustration} small /><span><span className="article-row-title">{a.title}</span><span className="article-meta">{a.topic}<span aria-hidden="true">·</span>{a.minutes} min read</span>{a.kind === "imported" && <span className="personal-tag">From your links</span>}</span></button>
                 <button className="bookmark-button" aria-label={saved.includes(a.id) ? `Remove bookmark: ${a.title}` : `Bookmark: ${a.title}`} aria-pressed={saved.includes(a.id)} onClick={() => toggleSaved(a.id)}><Bookmark size={16} fill={saved.includes(a.id) ? "currentColor" : "none"} /></button>
                 <img className="page-rule" src="/assets/rule.svg" alt="" />
               </div>)}
@@ -326,7 +326,7 @@ export default function ReadingRoom() {
           <div className="page-heading"><span className="article-category">{pendingStory?.topic ?? article.topic}</span><span className="handwriting read-length">{article.minutes} min read</span></div>
           <h1>{pendingStory?.title ?? article.title}</h1>
           <p className="byline">{pendingStory ? pendingStory.source : article.author} <span>· {pendingStory ? "Popular today" : article.kind === "editorial" ? "Prototype essay" : article.source}</span></p>
-          <div className="reader-tabs" role="tablist" aria-label="Reading mode"><button role="tab" aria-selected={mode === "read"} onClick={() => setMode("read")}>Read</button><button role="tab" aria-selected={mode === "listen"} onClick={() => setMode("listen")}>Listen</button><div className="text-controls"><button aria-label="Decrease text size" disabled={textSize <= 17} onClick={() => setTextSize(s => s - 2)}>A−</button><button aria-label="Increase text size" disabled={textSize >= 21} onClick={() => setTextSize(s => s + 2)}>A+</button></div></div>
+          <div className="reader-tabs" role="tablist" aria-label="Reading mode"><button role="tab" aria-selected={mode === "read"} onClick={() => setMode("read")}>Read</button><button role="tab" aria-selected={mode === "listen"} onClick={() => setMode("listen")}>Listen</button><div className="text-controls"><button aria-label="Decrease text size" disabled={textSize <= 18} onClick={() => setTextSize(s => s - 2)}>A−</button><button aria-label="Increase text size" disabled={textSize >= 22} onClick={() => setTextSize(s => s + 2)}>A+</button></div></div>
           {pendingStory ? <div className="article-load-state" role={storyError ? "alert" : "status"}>{openingStory ? <><LoaderCircle className="spin" size={26} /><p>Opening the full article…</p><small>Fetching text from {pendingStory.source}.</small></> : <><BookOpen size={26} /><p>This publisher couldn’t be opened.</p><small>{storyError?.message}</small><button className="primary-button" onClick={() => { openImport(pendingStory.url); setImportMode("text"); }}>Paste article text</button><button className="subtle-button" onClick={() => { setPendingStory(null); setStoryError(null); }}>Return to my read</button></>}</div> : mode === "read" ? <>
             <div className="reading-scroll" ref={reading} style={{ fontSize: textSize }} tabIndex={0} aria-label={fullText ? "Full article text" : `Article page ${Math.min(page + 1, pages.length)}`}>
               {article.kind !== "imported" && (fullText || page === 0) && <Illustration type={article.illustration} />}
@@ -348,7 +348,7 @@ export default function ReadingRoom() {
         </>}
       </section>
       <section className="audio-dock" aria-label="Audio player">
-        <div className="audio-controls"><button className="dock-icon" aria-label="Choose a narrator" onClick={() => { setMode("listen"); setMobilePage("article"); }}><img src="/assets/headphones.svg" alt="" /></button><button className="skip-audio" aria-label="Back 15 seconds" disabled={!audioRef.current} onClick={() => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 15); }}><SkipBack size={18} /><small>15</small></button><button className="main-play" aria-label={generating ? "Cancel audio generation" : playing ? "Pause narration" : "Play narration"} onClick={togglePlay} disabled={!!pendingStory}>{generating ? <LoaderCircle className="spin" size={32} /> : playing ? <Pause size={22} fill="currentColor" /> : <img src="/assets/play.svg" alt="" />}</button><button className="skip-audio" aria-label="Forward 15 seconds" disabled={!audioRef.current} onClick={() => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 15); }}><SkipForward size={18} /><small>15</small></button><button className="dock-icon" aria-label="Share article" onClick={() => void shareArticle()}><img src="/assets/share.svg" alt="" /></button></div>
+        <div className="audio-controls"><button className="dock-icon" aria-label="Choose a narrator" onClick={() => { setMode("listen"); setMobilePage("article"); }}><Headphones /></button><button className="skip-audio" aria-label="Back 15 seconds" disabled={!audioRef.current} onClick={() => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 15); }}><SkipBack size={18} /><small>15</small></button><button className="main-play" aria-label={generating ? "Cancel audio generation" : playing ? "Pause narration" : "Play narration"} onClick={togglePlay} disabled={!!pendingStory}>{generating ? <LoaderCircle className="spin" size={32} /> : playing ? <Pause size={22} fill="currentColor" /> : <Play fill="currentColor" />}</button><button className="skip-audio" aria-label="Forward 15 seconds" disabled={!audioRef.current} onClick={() => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 15); }}><SkipForward size={18} /><small>15</small></button><button className="dock-icon" aria-label="Share article" onClick={() => void shareArticle()}><ExternalLink /></button></div>
         <div className="audio-track"><span>{clock(audioTime)}</span><input aria-label="Seek within the current audio section" type="range" min={0} max={audioDuration || 1} step={0.1} value={Math.min(audioTime, audioDuration || 1)} disabled={!audioDuration} onChange={e => { if (audioRef.current) { audioRef.current.currentTime = Number(e.target.value); setAudioTime(Number(e.target.value)); } }} /><span>{clock(audioDuration)}</span></div>
         <div className="audio-details"><span role={audioError ? "alert" : "status"} title={audioError || undefined}>{audioError ? audioError : generating ? "Preparing a little storytelling…" : voices.length ? `${voices.find(v => v.id === voiceId)?.name ?? "Narrator"} · Section ${chunkIndex + 1} of ${chunks.length}` : "Read at your own pace. Listening connects with ElevenLabs."}</span><label><span className="sr-only">Playback speed</span><select value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[0.75, 1, 1.25, 1.5, 2].map(s => <option value={s} key={s}>{s}×</option>)}</select></label>{chunks.length > 1 && <button disabled={!!pendingStory || generating || chunkIndex >= chunks.length - 1} onClick={() => void playChunk(chunkIndex + 1)}>Next section <ArrowRight size={12} /></button>}</div>
         {audioError && mode !== "listen" && <p className="inline-error" role="alert">{audioError}</p>}

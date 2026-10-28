@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Bookmark, Check, ChevronLeft, ChevronRight, ExternalLink, Headphones, Link2, LoaderCircle, Pause, Play, Plus, Search, SkipBack, SkipForward, SlidersHorizontal, Trash2, X, Volume2, Sparkles, Cpu, HeartPulse, Award, Bitcoin, BookOpen } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Check, ChevronLeft, ChevronRight, ExternalLink, Headphones, Link2, LoaderCircle, Pause, Play, Plus, Search, SkipBack, SkipForward, SlidersHorizontal, Trash2, X, Volume2, Sparkles, Cpu, HeartPulse, Award, Bitcoin, BookOpen, Book, Flame, Share2, Type, RotateCcw, RotateCw, ChevronDown, MoreHorizontal, Info } from "lucide-react";
 import { articles as starterArticles } from "@/lib/articles";
 import { topics, type Article, type FeedStory, type Topic, type Voice } from "@/lib/types";
 import { splitNarration } from "@/lib/audio";
 import { narratorCatalog } from "@/lib/narrators";
 import { paginateArticle } from "@/lib/reading";
 import { filterArticles, visibleSelection, type Shelf } from "@/lib/shelves";
-import ArticleSpread from "./ArticleSpread";
+import { IconButton, Popover, closePopover } from "./QuietControls";
 import TurningPage from "./TurningPage";
 import MovingCover, { type CoverHome } from "./MovingCover";
 
@@ -54,6 +54,8 @@ export default function ReadingRoom() {
   const [topic, setTopic] = useState<Topic>("All");
   const [shelf, setShelf] = useState<Shelf>("collection");
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"read" | "listen">("read");
   const [textSize, setTextSize] = useState(20);
   const [page, setPage] = useState(0);
@@ -97,7 +99,7 @@ export default function ReadingRoom() {
   const chunks = useMemo(() => splitNarration(article.paragraphs), [article]);
   useEffect(() => { setPageTurn(null); }, [mode]);
   const pages = useMemo(() => paginateArticle(article.paragraphs), [article]);
-  const articleSpread = wideBook && !fullText && mode === "read" && !pendingStory;
+  const articleSpread = false;
   useEffect(() => {
     const media = matchMedia("(min-width:801px)");
     const update = () => { setWideBook(media.matches); setPageTurn(null); };
@@ -105,10 +107,6 @@ export default function ReadingRoom() {
     return () => media.removeEventListener("change", update);
   }, []);
   useEffect(() => { if (wideBook && !fullText) setPage(p => p - p % 2); }, [wideBook, fullText]);
-  function spreadContent(index: number) {
-    return <ArticleSpread article={article} pages={pages} page={index} textSize={textSize} busy={!!pageTurn} saved={saved.includes(article.id)} onTurn={turnPage} onExit={() => { setPageTurn(null); setFullText(true); setPage(0); }} onListen={() => setMode("listen")} onTextSize={setTextSize} onBookmark={() => toggleSaved(article.id)} />;
-  }
-
   const wordCount = article.paragraphs.join(" ").split(/\s+/).filter(Boolean).length;
   const visible = useMemo(() => filterArticles(allArticles, topic, search, shelf, saved), [allArticles, topic, search, shelf, saved]);
   const recentStories = stories.filter(a => Date.now() - new Date(a.publishedAt).getTime() <= 24 * 60 * 60_000);
@@ -156,7 +154,7 @@ export default function ReadingRoom() {
     : !visible.some(a => a.id === selectedId));
   function selectShelf(next: Shelf) {
     stopAudio(); storySequence.current++; setPendingStory(null); setOpeningStory(""); setStoryError(null);
-    setShelf(next); setTopic("All"); setSearch(""); setFullText(true); setPageTurn(null); setMobilePage("contents");
+    setShelf(next); setTopic("All"); setSearch(""); setSearchOpen(false); setFullText(true); setPageTurn(null); setMobilePage("contents");
   }
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(""), 4500); return () => clearTimeout(timer); }, [toast]);
   useEffect(() => { if (shelf === "today" && !stories.length) void loadFeed(); }, [shelf]);
@@ -271,6 +269,12 @@ export default function ReadingRoom() {
     else if (audioRef.current && audioRef.current.currentTime < audioRef.current.duration) void audioRef.current.play().catch(() => setAudioError("Press play again to resume listening."));
     else void playChunk(chunkIndex, audioTime);
   }
+  function seekAudio(delta: number) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + delta));
+    setAudioTime(audio.currentTime);
+  }
   function selectVoice(id: string) { savedVoice.current = id; stopAudio(); audioRef.current = null; setVoiceId(id); setAudioTime(0); setAudioDuration(0); }
   function previewVoice(voice: Voice) {
     if (!voice.previewUrl) { setAudioError("No preview is available for this voice. Choose it to hear the article."); return; }
@@ -301,74 +305,83 @@ export default function ReadingRoom() {
       <p className="welcome-note">For curious minds.<br />And unhurried moments.</p>
       <p className="cover-footnote">READ SOMETHING GOOD. HEAR IT IN A VOICE YOU LOVE.</p>
     </section> : <>
-      <div className="room-toolbar">
-        <div className="shelf-tabs" role="tablist" aria-label="Article shelves">{([ ["collection", "The collection"], ["today", "Popular today"], ["saved", "My bookmarks"] ] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={shelf === id} onClick={() => { selectShelf(id); }}>{label}{id === "saved" && saved.length > 0 && <span>{saved.length}</span>}</button>)}</div>
-        <span className="room-tagline">a little room for big ideas</span>
-      </div>
-      <div className="mobile-switch"><button onClick={() => setMobilePage("contents")} className={mobilePage === "contents" ? "active" : ""}>Contents</button><button onClick={() => setMobilePage("article")} className={mobilePage === "article" ? "active" : ""}>Your read</button></div>
       <section className={`book-spread ${articleSpread ? "article-spread" : ""}`} id="main-content" aria-label="Open reading book">
         <div className="book-art" aria-hidden="true"><img src="/assets/book.png" alt="" /></div>
         {bookMotion && <MovingCover direction={bookMotion} home={coverHome.current} onComplete={() => { if (bookMotion === "closing") setOpened(false); setBookMotion(null); }} />}
-        {pageTurn && <TurningPage targetSpread={articleSpread ? spreadContent(turningPage) : undefined} direction={pageTurn} paragraphs={pages[turningPage] ?? []} targetPage={turningPage} totalPages={pages.length} illustration={article.kind !== "imported" ? article.illustration : undefined} onComplete={() => { setPage(turningPage); setPageTurn(null); reading.current?.scrollTo({ top: 0 }); }} />}
-        {articleSpread ? spreadContent(page) : <>
+        {pageTurn && <TurningPage direction={pageTurn} paragraphs={pages[turningPage] ?? []} targetPage={turningPage} totalPages={pages.length} illustration={article.kind !== "imported" ? article.illustration : undefined} onComplete={() => { setPage(turningPage); setPageTurn(null); reading.current?.scrollTo({ top: 0 }); }} />}
+        <>
         <section className={`left-page ${mobilePage !== "contents" ? "mobile-hidden" : ""}`} aria-label="Article collection">
-          <div className="page-heading"><span className="handwriting">{shelf === "today" ? "what's stirring today" : shelf === "saved" ? "reads to come back to" : "a collection of curious reads"}</span><span className="folio">I</span></div>
-          <div className="topic-list" aria-label="Topics">{topics.map(t => <button key={t} onClick={() => setTopic(t)} aria-pressed={topic === t}>{t}</button>)}</div>
-          <label className="search-field"><Search size={14} /><span className="sr-only">Search articles</span><input placeholder="Find a little curiosity…" value={search} onChange={e => setSearch(e.target.value)} />{search && <button aria-label="Clear search" onClick={() => setSearch("")}><X size={14} /></button>}</label>
+          <div className="shelf-tabs" role="tablist" aria-label="Article shelves">{([
+            ["collection", "Collection", BookOpen], ["today", "Today", Flame], ["saved", "Saved", Bookmark],
+          ] as const).map(([id, label, Icon]) => <button key={id} role="tab" aria-selected={shelf === id} onClick={() => selectShelf(id)}><Icon /><span>{label}</span></button>)}</div>
+          <div className="discovery-tools">
+            <IconButton label={searchOpen ? "Close search" : "Search articles"} aria-expanded={searchOpen} onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) requestAnimationFrame(() => searchRef.current?.focus()); else setSearch(""); }}><Search /></IconButton>
+            {searchOpen && <label className="search-field"><span className="sr-only">Search articles</span><input ref={searchRef} placeholder="Search articles" value={search} onChange={e => setSearch(e.target.value)} /></label>}
+            {!searchOpen && topic !== "All" && <button className="active-filter" aria-label={`Clear ${topic} filter`} onClick={() => setTopic("All")}>{topic}<X /></button>}
+            <Popover label="Filter topics" icon={<SlidersHorizontal />} className="topic-popover"><div className="topic-list" aria-label="Topics">{topics.map(t => <button key={t} aria-pressed={topic === t} onClick={e => { setTopic(t); closePopover(e.currentTarget); }}>{t}</button>)}</div></Popover>
+          </div>
           <div className="contents-scroll">
             {shelf === "today" ? <>
-              <div className="feed-note"><span>Hacker News · ranked stories from the last 24h</span><button onClick={() => void loadFeed()} disabled={feedLoading}>{feedLoading ? "Loading…" : "Refresh"}</button></div>
+              <div className="feed-note"><span>Hacker News · last 24 hours</span><IconButton label="Refresh today’s articles" disabled={feedLoading} onClick={() => void loadFeed()}><RotateCw /></IconButton></div>
               {feedLoading && <div className="feed-skeleton" role="status" aria-label="Loading today’s articles">{[0, 1, 2].map(i => <div key={i}><span /><span /><span /></div>)}</div>}
               {feedError && <p className="inline-error" role="alert">{feedError}<button onClick={() => void loadFeed()}>Retry</button></p>}
               {!feedLoading && !visibleStories.length && <div className="empty-state"><BookOpen size={28} /><p>No fresh stories on this shelf yet.</p><button onClick={() => void loadFeed()}>Retry</button></div>}
-              {visibleStories.map((story, i) => <div className="news-row" key={story.id}><span className="news-number">{String(i + 1).padStart(2, "0")}</span><div><button className="story-title" disabled={!!openingStory} onClick={() => void openPopularStory(story)}>{story.title}{openingStory === story.id ? <LoaderCircle className="spin" size={13} /> : <BookOpen size={12} />}</button><p className="article-meta">{story.source} · {story.score} HN points</p><div className="news-actions"><button disabled={!!openingStory} onClick={() => void openPopularStory(story)}>{openingStory === story.id ? "Opening full text…" : "Read in my room"}</button><a href={story.discussionUrl} target="_blank" rel="noopener noreferrer">Discussion</a></div></div></div>)}
+              {visibleStories.map(story => <div className={`news-row ${article.url === story.url && !readerEmpty ? "selected" : ""}`} key={story.id}><button className="story-title" disabled={!!openingStory} onClick={() => void openPopularStory(story)}>{story.title}<span className="article-meta">{story.topic} · {story.source}</span>{openingStory === story.id && <LoaderCircle className="spin" />}</button></div>)}
               {storyError && <div className="story-error" role="alert"><p>{storyError.message}</p><button onClick={() => { openImport(storyError.url); setImportMode("text"); }}>Paste article text</button></div>}
-              {feedTime && <p className="fine-print">Updated {new Date(feedTime).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}. Popularity reflects Hacker News, not all readers.</p>}
-              <div className="source-shelf"><h3>Other doors into discovery</h3>{sourceShelves.map(({ name, topic: label, url: link, Icon }) => <a key={name} href={link} target="_blank" rel="noopener noreferrer"><Icon size={16} /><span>{name}<small>{label}</small></span><ExternalLink size={12} /></a>)}</div>
             </> : <>
               {visible.map(a => <div className={`article-row ${article.id === a.id ? "selected" : ""}`} key={a.id}>
-                <button className="article-select" onClick={() => chooseArticle(a)}><Illustration type={a.illustration} small /><span><span className="article-row-title">{a.title}</span><span className="article-meta">{a.topic}<span aria-hidden="true">·</span>{a.minutes} min read</span>{a.kind === "imported" && <span className="personal-tag">From your links</span>}</span></button>
-                <button className="bookmark-button" aria-label={saved.includes(a.id) ? `Remove bookmark: ${a.title}` : `Bookmark: ${a.title}`} aria-pressed={saved.includes(a.id)} onClick={() => toggleSaved(a.id)}><Bookmark size={16} fill={saved.includes(a.id) ? "currentColor" : "none"} /></button>
+                <button className="article-select" onClick={() => chooseArticle(a)}><Illustration type={a.illustration} small /><span><span className="article-row-title">{a.title}</span><span className="article-meta">{a.topic}<span aria-hidden="true">·</span>{a.minutes} min</span></span></button>
+                <button className="bookmark-button icon-button" aria-label={saved.includes(a.id) ? `Remove bookmark: ${a.title}` : `Bookmark: ${a.title}`} aria-pressed={saved.includes(a.id)} onClick={() => toggleSaved(a.id)}><Bookmark size={16} fill={saved.includes(a.id) ? "currentColor" : "none"} /><span className="tooltip" aria-hidden="true">{saved.includes(a.id) ? "Remove bookmark" : "Bookmark"}</span></button>
                 <img className="page-rule" src="/assets/rule.svg" alt="" />
               </div>)}
               {!visible.length && <div className="empty-state"><Bookmark size={26} /><p>{shelf === "saved" ? "Nothing saved yet. Tap the bookmark icon on any read." : "No reads found just yet."}</p><span>{shelf === "saved" ? "Tap a bookmark or add an article link." : "Try a different topic or search."}</span></div>}
-              <button className="add-to-book" onClick={() => openImport()}><Link2 size={16} /><span>Bring your own curiosity<small>Add an article from a link</small></span><Plus size={16} /></button>
             </>}
           </div>
-          <div className="page-bottom"><span>{shelf === "today" ? "Fresh ideas, familiar pages." : "Collected with curiosity."}</span><span>{shelf === "today" ? visibleStories.length : visible.length} reads</span></div>
+          <div className="collection-actions"><button className="add-to-book" onClick={() => openImport()}><Plus />Add an article</button><IconButton label="About The Reading Room" onClick={() => setModal("about")}><Info /></IconButton></div>
         </section>
         <section className={`right-page ${mobilePage !== "article" ? "mobile-hidden" : ""}`} aria-label="Selected article">
-          <div className="page-heading" hidden={readerEmpty}><span className="article-category">{pendingStory?.topic ?? article.topic}</span><span className="handwriting read-length">{article.minutes} min read</span></div>
+          <div className="article-toolbar">
+            <IconButton label="Back to articles" className="back-to-contents" onClick={() => { stopAudio(); setMobilePage("contents"); }}><ArrowLeft /></IconButton>
+            <div className="reader-tabs" role="tablist" aria-label="Reading mode">
+              <IconButton label="Read article" role="tab" aria-selected={mode === "read"} disabled={readerEmpty || !!pendingStory} onClick={() => { stopAudio(); setMode("read"); }}><BookOpen /></IconButton>
+              <IconButton label="Listen to article" role="tab" aria-selected={mode === "listen"} disabled={readerEmpty || !!pendingStory} onClick={() => setMode("listen")}><Headphones /></IconButton>
+            </div>
+            <div className="article-actions">
+              <Popover label="Text size" icon={<Type />}><div className="size-options" role="group" aria-label="Article text size">{[18, 20, 22].map(size => <button key={size} aria-pressed={textSize === size} onClick={() => setTextSize(size)}>{size === 18 ? "Small" : size === 20 ? "Medium" : "Large"}</button>)}</div></Popover>
+              <IconButton label={saved.includes(article.id) ? "Remove bookmark" : "Bookmark article"} aria-pressed={saved.includes(article.id)} disabled={readerEmpty || !!pendingStory} onClick={() => toggleSaved(article.id)}><Bookmark fill={saved.includes(article.id) ? "currentColor" : "none"} /></IconButton>
+              <IconButton label="Share article" disabled={readerEmpty || !!pendingStory} onClick={() => void shareArticle()}><Share2 /></IconButton>
+            </div>
+          </div>
           <h1 hidden={readerEmpty}>{pendingStory?.title ?? article.title}</h1>
-          <p className="byline" hidden={readerEmpty}>{pendingStory ? pendingStory.source : article.author} <span>· {pendingStory ? "Popular today" : article.kind === "editorial" ? "Prototype essay" : article.source}</span></p>
-          <div className="reader-tabs" hidden={readerEmpty} role="tablist" aria-label="Reading mode"><button role="tab" aria-selected={mode === "read"} onClick={() => setMode("read")}>Read</button><button role="tab" aria-selected={mode === "listen"} onClick={() => setMode("listen")}>Listen</button><div className="text-controls"><button aria-label="Decrease text size" disabled={textSize <= 18} onClick={() => setTextSize(s => s - 2)}>A−</button><button aria-label="Increase text size" disabled={textSize >= 22} onClick={() => setTextSize(s => s + 2)}>A+</button></div></div>
+          <p className="byline" hidden={readerEmpty}>{pendingStory?.topic ?? article.topic} · {pendingStory ? pendingStory.source : `${article.minutes} min read`}{article.kind === "imported" && !pendingStory && <> · {article.source}</>}</p>
           {readerEmpty ? <div className="empty-state reader-empty"><BookOpen /><p>{shelf === "today" ? "Choose an article to read." : "No articles on this shelf."}</p></div> : pendingStory ? <div className="article-load-state" role={storyError ? "alert" : "status"}>{openingStory ? <><LoaderCircle className="spin" size={26} /><p>Opening the full article…</p><small>Fetching text from {pendingStory.source}.</small></> : <><BookOpen size={26} /><p>This publisher couldn’t be opened.</p><small>{storyError?.message}</small><button className="primary-button" onClick={() => { openImport(pendingStory.url); setImportMode("text"); }}>Paste article text</button><button className="subtle-button" onClick={() => { setPendingStory(null); setStoryError(null); }}>Return to my read</button></>}</div> : mode === "read" ? <>
             <div className="reading-scroll" ref={reading} style={{ fontSize: textSize }} tabIndex={0} aria-label={fullText ? "Full article text" : `Article page ${Math.min(page + 1, pages.length)}`}>
               {article.kind !== "imported" && (fullText || page === 0) && <Illustration type={article.illustration} />}
               {(fullText ? article.paragraphs : pages[Math.min(page, pages.length - 1)] ?? []).map((p, i) => <p key={i}>{p}</p>)}
-              {(fullText || page >= pages.length - 1) && <div className="article-source">{article.url ? <a href={article.url} target="_blank" rel="noopener noreferrer">{article.kind === "editorial" ? "Explore the background source" : "Read at the original source"}<ExternalLink size={12} /></a> : <span>Text added by you.</span>}<small>{article.kind === "editorial" ? "Original writing for this prototype. Not live news." : "Saved privately in this browser. Check the imported text before listening."}</small>{article.kind === "imported" && <button onClick={removeArticle}><Trash2 size={12} />Remove from my room</button>}</div>}
+              {(fullText || page >= pages.length - 1) && article.url && <div className="article-source"><a href={article.url} target="_blank" rel="noopener noreferrer">Source <ExternalLink /></a></div>}
             </div>
-            <div className="reading-pagination"><button aria-label="Previous article page" disabled={fullText || page === 0 || !!pageTurn} onClick={() => turnPage(page - 1)}><ChevronLeft size={17} /></button><span>{fullText ? `Full article · ${wordCount.toLocaleString()} words` : `Page ${Math.min(page + 1, pages.length)} of ${pages.length}`}</span><button aria-label="Next article page" disabled={fullText || page >= pages.length - 1 || !!pageTurn} onClick={() => turnPage(page + 1)}><ChevronRight size={17} /></button><button className="reading-view-toggle" onClick={() => { setPageTurn(null); setFullText(!fullText); setPage(0); reading.current?.scrollTo({ top: 0 }); }}>{fullText ? "Pages" : "Full text"}</button></div>
-          </> : <div className="listen-panel" tabIndex={0} aria-label="Narration settings and full article text">
-            <p className="listen-description">{article.description}</p><img className="page-rule" src="/assets/rule.svg" alt="" />
-            <div className="voice-heading"><span className="handwriting">choose your storyteller</span><Headphones size={18} /></div>
-            <div className="voice-options" role="radiogroup" aria-label="Narrator voices">{voices.map(v => <div className={`voice-option ${voiceId === v.id ? "chosen" : ""}`} key={v.id}><button role="radio" aria-checked={voiceId === v.id} onClick={() => selectVoice(v.id)}><span className="radio-dot">{voiceId === v.id && <span />}</span><span>{v.name}<small>{v.description}</small></span></button><button className="voice-preview" onClick={() => previewVoice(v)} aria-label={`${previewing === v.id ? "Stop" : "Preview"} ${v.name}`}>{previewing === v.id ? <Pause size={14} /> : <Volume2 size={14} />}</button></div>)}</div>
-            {voiceMessage && <p className="connection-note" role="status">{voiceMessage}</p>}
-            <p className="fine-print">AI narration by ElevenLabs · Your voice choice is remembered.</p>
-            {audioError && <p className="inline-error" role="alert">{audioError}</p>}
-            <div className="listen-transcript" style={{ fontSize: textSize }}><h2>Read along</h2><small>Complete article · {wordCount.toLocaleString()} words</small>{article.paragraphs.map((text, i) => <p key={i}>{text}</p>)}</div>
-          </div>}
-          <div className="page-bottom"><button disabled={!!pendingStory} onClick={() => toggleSaved(article.id)}><Bookmark size={13} fill={saved.includes(article.id) ? "currentColor" : "none"} />{saved.includes(article.id) ? "Bookmarked" : "Keep this read"}</button><span>II</span></div>
+            <div className="reading-pagination">
+              {!fullText && <><IconButton label="Previous article page" disabled={page === 0 || !!pageTurn} onClick={() => turnPage(page - 1)}><ChevronLeft /></IconButton><span>{Math.min(page + 1, pages.length)} / {pages.length}</span><IconButton label="Next article page" disabled={page >= pages.length - 1 || !!pageTurn} onClick={() => turnPage(page + 1)}><ChevronRight /></IconButton></>}
+              <button className="reading-view-toggle" onClick={() => { setPageTurn(null); setFullText(!fullText); setPage(0); reading.current?.scrollTo({ top: 0 }); }}>{fullText ? "Pages" : "Full text"}</button>
+            </div>
+          </> : <>
+            <div className="voice-selector"><Popover label="Choose a voice" icon={<><span>{voices.find(v => v.id === voiceId)?.name ?? "Roger"}</span><ChevronDown /></>}><div role="radiogroup" aria-label="Narrator voices">{voices.map(v => <div className="voice-row" key={v.id}><button role="radio" aria-checked={voiceId === v.id} onClick={e => { selectVoice(v.id); closePopover(e.currentTarget); }}><span>{v.name}<small>{v.description}</small></span>{voiceId === v.id && <Check />}</button><IconButton label={`${previewing === v.id ? "Stop" : "Preview"} ${v.name}`} onClick={() => previewVoice(v)}>{previewing === v.id ? <Pause /> : <Play />}</IconButton></div>)}</div></Popover></div>
+            <div className="listen-panel" tabIndex={0} aria-label="Read along" style={{ fontSize: textSize }}>{article.paragraphs.map((text, i) => <p key={i}>{text}</p>)}</div>
+            <section className="audio-dock" aria-label="Audio player" tabIndex={0}>
+              <div className="audio-track"><span>{clock(audioTime)}</span><input aria-label="Seek within the current audio section" type="range" min={0} max={audioDuration || 1} step={0.1} value={Math.min(audioTime, audioDuration || 1)} disabled={!audioDuration} onChange={e => { if (audioRef.current) { audioRef.current.currentTime = Number(e.target.value); setAudioTime(Number(e.target.value)); } }} /><span>{clock(audioDuration)}</span></div>
+              <div className="audio-controls">
+                <IconButton label="Back 15 seconds" disabled={!audioRef.current} onClick={() => seekAudio(-15)}><RotateCcw /><span className="skip-label" aria-hidden="true">15</span></IconButton>
+                <IconButton className="main-play" label={generating ? "Cancel audio generation" : playing ? "Pause narration" : "Play narration"} onClick={togglePlay}>{generating ? <LoaderCircle className="spin" /> : playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</IconButton>
+                <IconButton label="Forward 15 seconds" disabled={!audioRef.current} onClick={() => seekAudio(15)}><RotateCw /><span className="skip-label" aria-hidden="true">15</span></IconButton>
+                <button className="speed-button" aria-label={`Playback speed ${speed} times. Change speed`} onClick={() => { const speeds = [1, 1.25, 1.5, 2, .75]; setSpeed(speeds[(speeds.indexOf(speed) + 1) % speeds.length]); }}>{speed}×</button>
+              </div>
+              <div className="audio-status" role="status">{generating ? "Preparing narration…" : chunks.length > 1 ? `Section ${chunkIndex + 1} of ${chunks.length}` : ""}{chunks.length > 1 && <IconButton label="Next audio section" disabled={generating || chunkIndex >= chunks.length - 1} onClick={() => void playChunk(chunkIndex + 1)}><ChevronRight /></IconButton>}</div>
+              {audioError && <p className="inline-error" role="alert">{audioError}</p>}
+            </section>
+          </>}
         </section>
-        </>}
+        </>
       </section>
-      <section className="audio-dock" aria-label="Audio player">
-        <div className="audio-controls"><button className="dock-icon" aria-label="Choose a narrator" onClick={() => { setMode("listen"); setMobilePage("article"); }}><Headphones /></button><button className="skip-audio" aria-label="Back 15 seconds" disabled={!audioRef.current} onClick={() => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 15); }}><SkipBack size={18} /><small>15</small></button><button className="main-play" aria-label={generating ? "Cancel audio generation" : playing ? "Pause narration" : "Play narration"} onClick={togglePlay} disabled={!!pendingStory}>{generating ? <LoaderCircle className="spin" size={32} /> : playing ? <Pause size={22} fill="currentColor" /> : <Play fill="currentColor" />}</button><button className="skip-audio" aria-label="Forward 15 seconds" disabled={!audioRef.current} onClick={() => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 15); }}><SkipForward size={18} /><small>15</small></button><button className="dock-icon" aria-label="Share article" onClick={() => void shareArticle()}><ExternalLink /></button></div>
-        <div className="audio-track"><span>{clock(audioTime)}</span><input aria-label="Seek within the current audio section" type="range" min={0} max={audioDuration || 1} step={0.1} value={Math.min(audioTime, audioDuration || 1)} disabled={!audioDuration} onChange={e => { if (audioRef.current) { audioRef.current.currentTime = Number(e.target.value); setAudioTime(Number(e.target.value)); } }} /><span>{clock(audioDuration)}</span></div>
-        <div className="audio-details"><span role={audioError ? "alert" : "status"} title={audioError || undefined}>{audioError ? audioError : generating ? "Preparing a little storytelling…" : voices.length ? `${voices.find(v => v.id === voiceId)?.name ?? "Narrator"} · Section ${chunkIndex + 1} of ${chunks.length}` : "Read at your own pace. Listening connects with ElevenLabs."}</span><label><span className="sr-only">Playback speed</span><select value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[0.75, 1, 1.25, 1.5, 2].map(s => <option value={s} key={s}>{s}×</option>)}</select></label>{chunks.length > 1 && <button disabled={!!pendingStory || generating || chunkIndex >= chunks.length - 1} onClick={() => void playChunk(chunkIndex + 1)}>Next section <ArrowRight size={12} /></button>}</div>
-        {audioError && mode !== "listen" && <p className="inline-error" role="alert">{audioError}</p>}
-      </section>
-      <footer className="room-footer"><span>A collection of curious reads.</span><button onClick={closeBook}>Close the book <BookOpen size={12} /></button></footer>
     </>}
     {toast && <div className="toast" role="status"><Check size={15} />{toast}</div>}
     {modal && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !importing) setModal(null); }}><Dialog onClose={() => { if (!importing) setModal(null); }} title={modal === "import" ? "Bring a story into your room" : "A little room for curiosity"}>

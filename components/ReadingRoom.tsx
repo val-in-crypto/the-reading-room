@@ -7,6 +7,7 @@ import { topics, type Article, type FeedStory, type Topic, type Voice } from "@/
 import { splitNarration } from "@/lib/audio";
 import { narratorCatalog } from "@/lib/narrators";
 import { paginateArticle } from "@/lib/reading";
+import { parseImportInput } from "@/lib/import-input";
 import { filterArticles, visibleSelection, type Shelf } from "@/lib/shelves";
 import { IconButton, Popover, closePopover } from "./QuietControls";
 import TurningPage from "./TurningPage";
@@ -61,10 +62,8 @@ export default function ReadingRoom() {
   const [page, setPage] = useState(0);
   const [mobilePage, setMobilePage] = useState<"contents" | "article">("contents");
   const [modal, setModal] = useState<"import" | "about" | null>(null);
-  const [importMode, setImportMode] = useState<"link" | "text">("link");
-  const [url, setUrl] = useState("");
-  const [pasteTitle, setPasteTitle] = useState("");
-  const [pasteText, setPasteText] = useState("");
+  const [importInput, setImportInput] = useState("");
+  const [newArticleId, setNewArticleId] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const [toast, setToast] = useState("");
@@ -156,6 +155,7 @@ export default function ReadingRoom() {
     stopAudio(); storySequence.current++; setPendingStory(null); setOpeningStory(""); setStoryError(null);
     setShelf(next); setTopic("All"); setSearch(""); setSearchOpen(false); setFullText(true); setPageTurn(null); setMobilePage("contents");
   }
+  useEffect(() => { if (!newArticleId) return; const timer = setTimeout(() => setNewArticleId(""), 2000); return () => clearTimeout(timer); }, [newArticleId]);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(""), 4500); return () => clearTimeout(timer); }, [toast]);
   useEffect(() => { if (shelf === "today" && !stories.length) void loadFeed(); }, [shelf]);
   useEffect(() => { audioRef.current && (audioRef.current.playbackRate = speed); }, [speed]);
@@ -213,22 +213,20 @@ export default function ReadingRoom() {
     catch (error) { setFeedError(error instanceof Error ? error.message : "Could not load today's stories."); }
     finally { setFeedLoading(false); }
   }
-  function openImport(link = "") { setUrl(link); setImportError(""); setImportMode("link"); setModal("import"); }
+  function openImport(link = "") { setImportInput(link); setImportError(""); setModal("import"); }
   async function importArticle(event: React.FormEvent) {
     event.preventDefault(); setImportError(""); setImporting(true);
     try {
+      const input = parseImportInput(importInput);
       let imported: Article;
-      if (importMode === "link") {
-        if (!safeLink(url)) throw new Error("Enter a public article link starting with https://.");
-        const res = await fetch("/api/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+      if ("url" in input) {
+        const res = await fetch("/api/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
         const data = await res.json(); if (!res.ok) throw new Error(data.error); imported = data.article;
       } else {
-        if (!pasteTitle.trim() || pasteText.trim().length < 200) throw new Error("Add a title and at least 200 characters of article text.");
-        if (pasteText.length > 60_000) throw new Error("Use up to 60,000 characters for this prototype.");
-        imported = { id: `paste-${crypto.randomUUID()}`, title: pasteTitle.trim(), description: pasteText.trim().slice(0, 240), paragraphs: pasteText.trim().split(/\n\s*\n/).filter(Boolean), author: "Added by you", source: "Your pasted article", url: "", topic: topic === "All" ? "Tech" : topic, minutes: Math.max(1, Math.ceil(pasteText.split(/\s+/).length / 220)), illustration: "imported", kind: "imported", addedAt: Date.now() };
+        imported = { id: `paste-${crypto.randomUUID()}`, title: input.title, description: input.text.slice(0, 240), paragraphs: input.paragraphs, author: "Added by you", source: "Pasted article", url: "", topic: topic === "All" ? "Tech" : topic, minutes: Math.max(1, Math.ceil(input.text.split(/\s+/).length / 220)), illustration: "imported", kind: "imported", addedAt: Date.now() };
       }
       setImports(previous => [imported, ...previous.filter(a => a.id !== imported.id)].slice(0, 30)); setSaved(previous => previous.includes(imported.id) ? previous : [...previous, imported.id]);
-      chooseArticle(imported); setShelf("collection"); setTopic("All"); setSearch(""); setModal(null); openBook(); setToast("A new read, tucked into your collection.");
+      chooseArticle(imported); setShelf("collection"); setTopic("All"); setSearch(""); setModal(null); setNewArticleId(imported.id); openBook(); setToast("Article added.");
     } catch (error) { setImportError(error instanceof Error ? error.message : "Could not add this article."); }
     finally { setImporting(false); }
   }
@@ -295,15 +293,13 @@ export default function ReadingRoom() {
   return <main className={`${opened ? "room opened" : "room closed"} ${bookMotion ? `book-${bookMotion}` : ""}`}>
     <a className="skip-link" href="#main-content">Skip to reading room</a>
     <header className="site-header">
-      <button className="brand" aria-label="Close the book" onClick={closeBook}>The Reading Room</button>
-      <nav aria-label="Main navigation"><button className="subtle-button" onClick={() => setModal("about")}>A little about us</button><button className="add-button" onClick={() => openImport()}><Plus size={16} />Add an article</button></nav>
+      <span className="brand">The Reading Room</span>
+      {opened ? <IconButton label="Close the book" onClick={closeBook}><X /></IconButton> : <Popover label="More options" icon={<MoreHorizontal />} className="main-menu"><button onClick={e => { closePopover(e.currentTarget); setModal("about"); }}><Info />About</button><button onClick={e => { closePopover(e.currentTarget); openImport(); }}><Plus />Add article</button></Popover>}
     </header>
     {!opened ? <section className="cover-scene" id="main-content" aria-label="Welcome to the Reading Room">
       <img className="cover-flowers" src="/assets/flowers.png" alt="" />
       <button className="cover-book" onClick={openBook} aria-label="Open The Reading Room"><img src="/assets/cover.png" alt="The Reading Room. A collection of curious reads." /></button>
       <button className="open-invitation" onClick={openBook}><img src="/assets/arrow.svg" alt="" /><span>open me</span></button>
-      <p className="welcome-note">For curious minds.<br />And unhurried moments.</p>
-      <p className="cover-footnote">READ SOMETHING GOOD. HEAR IT IN A VOICE YOU LOVE.</p>
     </section> : <>
       <section className={`book-spread ${articleSpread ? "article-spread" : ""}`} id="main-content" aria-label="Open reading book">
         <div className="book-art" aria-hidden="true"><img src="/assets/book.png" alt="" /></div>
@@ -327,9 +323,9 @@ export default function ReadingRoom() {
               {feedError && <p className="inline-error" role="alert">{feedError}<button onClick={() => void loadFeed()}>Retry</button></p>}
               {!feedLoading && !visibleStories.length && <div className="empty-state"><BookOpen size={28} /><p>No fresh stories on this shelf yet.</p><button onClick={() => void loadFeed()}>Retry</button></div>}
               {visibleStories.map(story => <div className={`news-row ${article.url === story.url && !readerEmpty ? "selected" : ""}`} key={story.id}><button className="story-title" disabled={!!openingStory} onClick={() => void openPopularStory(story)}>{story.title}<span className="article-meta">{story.topic} · {story.source}</span>{openingStory === story.id && <LoaderCircle className="spin" />}</button></div>)}
-              {storyError && <div className="story-error" role="alert"><p>{storyError.message}</p><button onClick={() => { openImport(storyError.url); setImportMode("text"); }}>Paste article text</button></div>}
+              {storyError && <div className="story-error" role="alert"><p>{storyError.message}</p><button onClick={() => { openImport(); }}>Paste article text</button></div>}
             </> : <>
-              {visible.map(a => <div className={`article-row ${article.id === a.id ? "selected" : ""}`} key={a.id}>
+              {visible.map(a => <div className={`article-row ${article.id === a.id ? "selected" : ""} ${newArticleId === a.id ? "just-added" : ""}`} key={a.id}>
                 <button className="article-select" onClick={() => chooseArticle(a)}><Illustration type={a.illustration} small /><span><span className="article-row-title">{a.title}</span><span className="article-meta">{a.topic}<span aria-hidden="true">·</span>{a.minutes} min</span></span></button>
                 <button className="bookmark-button icon-button" aria-label={saved.includes(a.id) ? `Remove bookmark: ${a.title}` : `Bookmark: ${a.title}`} aria-pressed={saved.includes(a.id)} onClick={() => toggleSaved(a.id)}><Bookmark size={16} fill={saved.includes(a.id) ? "currentColor" : "none"} /><span className="tooltip" aria-hidden="true">{saved.includes(a.id) ? "Remove bookmark" : "Bookmark"}</span></button>
                 <img className="page-rule" src="/assets/rule.svg" alt="" />
@@ -354,7 +350,7 @@ export default function ReadingRoom() {
           </div>
           <h1 hidden={readerEmpty}>{pendingStory?.title ?? article.title}</h1>
           <p className="byline" hidden={readerEmpty}>{pendingStory?.topic ?? article.topic} · {pendingStory ? pendingStory.source : `${article.minutes} min read`}{article.kind === "imported" && !pendingStory && <> · {article.source}</>}</p>
-          {readerEmpty ? <div className="empty-state reader-empty"><BookOpen /><p>{shelf === "today" ? "Choose an article to read." : "No articles on this shelf."}</p></div> : pendingStory ? <div className="article-load-state" role={storyError ? "alert" : "status"}>{openingStory ? <><LoaderCircle className="spin" size={26} /><p>Opening the full article…</p><small>Fetching text from {pendingStory.source}.</small></> : <><BookOpen size={26} /><p>This publisher couldn’t be opened.</p><small>{storyError?.message}</small><button className="primary-button" onClick={() => { openImport(pendingStory.url); setImportMode("text"); }}>Paste article text</button><button className="subtle-button" onClick={() => { setPendingStory(null); setStoryError(null); }}>Return to my read</button></>}</div> : mode === "read" ? <>
+          {readerEmpty ? <div className="empty-state reader-empty"><BookOpen /><p>{shelf === "today" ? "Choose an article to read." : "No articles on this shelf."}</p></div> : pendingStory ? <div className="article-load-state" role={storyError ? "alert" : "status"}>{openingStory ? <><LoaderCircle className="spin" size={26} /><p>Opening the full article…</p><small>Fetching text from {pendingStory.source}.</small></> : <><BookOpen size={26} /><p>This publisher couldn’t be opened.</p><small>{storyError?.message}</small><button className="primary-button" onClick={() => { openImport(); }}>Paste article text</button><button className="subtle-button" onClick={() => { setPendingStory(null); setStoryError(null); }}>Return to my read</button></>}</div> : mode === "read" ? <>
             <div className="reading-scroll" ref={reading} style={{ fontSize: textSize }} tabIndex={0} aria-label={fullText ? "Full article text" : `Article page ${Math.min(page + 1, pages.length)}`}>
               {article.kind !== "imported" && (fullText || page === 0) && <Illustration type={article.illustration} />}
               {(fullText ? article.paragraphs : pages[Math.min(page, pages.length - 1)] ?? []).map((p, i) => <p key={i}>{p}</p>)}
@@ -384,15 +380,14 @@ export default function ReadingRoom() {
       </section>
     </>}
     {toast && <div className="toast" role="status"><Check size={15} />{toast}</div>}
-    {modal && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !importing) setModal(null); }}><Dialog onClose={() => { if (!importing) setModal(null); }} title={modal === "import" ? "Bring a story into your room" : "A little room for curiosity"}>
+    {modal && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !importing) setModal(null); }}><Dialog onClose={() => { if (!importing) setModal(null); }} title={modal === "import" ? "Add an article" : "The Reading Room"}>
       {modal === "import" ? <form onSubmit={importArticle}>
-        <p>Found something worth slowing down for? Tuck it into your collection.</p>
-        <div className="import-tabs"><button type="button" className={importMode === "link" ? "active" : ""} onClick={() => { setImportMode("link"); setImportError(""); }}><Link2 size={14} />Article link</button><button type="button" className={importMode === "text" ? "active" : ""} onClick={() => { setImportMode("text"); setImportError(""); }}>Paste text</button></div>
-        {importMode === "link" ? <label className="form-label">Article link<input type="url" required placeholder="https://…" value={url} onChange={e => setUrl(e.target.value)} autoFocus /><small>Open-access pages work best. We cannot open subscription or login-only content.</small></label> : <><label className="form-label">A title for your read<input required maxLength={240} value={pasteTitle} onChange={e => setPasteTitle(e.target.value)} placeholder="Something worth reading" autoFocus /></label><label className="form-label">Article text<textarea required minLength={200} maxLength={60_000} rows={7} value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder="Paste article text you have permission to use…" /></label></>}
-        <p className="fine-print">Saved only in this browser. When you press play, the text is sent to ElevenLabs for narration. Add content you have permission to use.</p>
-        {importError && <p className="inline-error" role="alert">{importError}</p>}
-        <button className="primary-button" disabled={importing} type="submit">{importing ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{importing ? "Opening the article…" : "Add to my collection"}</button>
-      </form> : <div className="about-copy"><p>A quiet corner of the internet, for ideas that deserve a little more of your time.</p><p>Explore technology, medicine, Nobel discoveries, AI and crypto. Keep a favourite, bring your own link, or let a storyteller read it to you.</p><p>This free prototype contains original sample essays. Popular today shows recent stories ranked on Hacker News. Other publication links open at their source.</p><span className="handwriting">Make yourself at home.</span><button className="primary-button" onClick={() => { setModal(null); openBook(); }}>Open the book <ArrowRight size={16} /></button></div>}
+        <label className="form-label">Article link or text<textarea required rows={7} maxLength={60_000} value={importInput} onChange={e => { setImportInput(e.target.value); setImportError(""); }} placeholder="Paste an https:// link or the article text…" aria-invalid={!!importError} aria-describedby={importError ? "import-error" : "import-help"} autoFocus /></label>
+        <p className="fine-print" id="import-help">Open-access links work best. Articles stay in this browser.</p>
+        {importError && <p id="import-error" className="inline-error" role="alert">{importError}</p>}
+        <button className="primary-button" disabled={importing} aria-busy={importing} type="submit">{importing ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{importing ? "Adding…" : "Add"}</button>
+      </form> : <div className="about-copy"><p>A quiet place to read and listen.</p><p>Discover ideas, save a favourite, or bring your own article.</p><p>Read something good. Hear it in a voice you love.</p><p className="fine-print">Sample essays by The Reading Room. Today’s stories ranked on Hacker News. AI narration by ElevenLabs; article text is sent for narration when you press Play.</p>{!opened && <button className="primary-button" onClick={() => { setModal(null); openBook(); }}>Open the book <ArrowRight /></button>}</div>}
+
     </Dialog></div>}
   </main>;
 }

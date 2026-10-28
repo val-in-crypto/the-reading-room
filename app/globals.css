@@ -154,3 +154,11 @@ button.story-title{display:block;text-align:left;padding:0;line-height:1.25}
 .room .main-play{width:48px;height:48px;background:var(--accent);color:var(--paper);border-radius:50%}
 .room .main-play:has(>svg:not(.spin)){background:var(--accent);color:var(--paper)}
 .room .illustration{aspect-ratio:16/9}
+
+[hidden]{display:none!important}
+.feed-skeleton>div{padding:24px 0;border-bottom:1px solid var(--line)}
+.feed-skeleton span{display:block;height:14px;margin:8px 0;background:var(--line);opacity:.45;animation:skeleton 1.4s ease-in-out infinite}
+.feed-skeleton span:nth-child(2){width:80%}.feed-skeleton span:nth-child(3){width:45%}
+@keyframes skeleton{50%{opacity:.2}}
+.inline-error button,.empty-state button{display:block;min-height:44px;color:var(--accent);text-decoration:underline;margin:auto}
+.reader-empty{justify-content:center;flex:1}

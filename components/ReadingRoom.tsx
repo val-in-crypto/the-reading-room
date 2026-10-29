@@ -323,7 +323,7 @@ export default function ReadingRoom() {
     event.preventDefault(); selectVoice(voices[next].id); options[next]?.focus();
   }
   function renderPlayer() {
-    if (!wideBook && mobilePage !== "article") return null;
+    if (bookMotion || (!wideBook && mobilePage !== "article")) return null;
     const dock = <section className={`audio-dock ${narrowPhone ? "mobile-dock" : ""}`} aria-label="Audio player" tabIndex={0} ref={player}>
               <div className="audio-track"><span>{clock(audioTime)}</span><input aria-label="Seek within the current audio section" type="range" min={0} max={audioDuration || 1} step={0.1} value={Math.min(audioTime, audioDuration || 1)} disabled={!audioDuration} onChange={e => { if (audioRef.current) { audioRef.current.currentTime = Number(e.target.value); setAudioTime(Number(e.target.value)); } }} /><span>{clock(audioDuration)}</span></div>
               <div className="audio-controls">

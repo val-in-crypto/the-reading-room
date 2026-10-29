@@ -1,0 +1,45 @@
+.book-spread{perspective:1800px;transform-style:preserve-3d}
+.opened .book-spread{animation:none}
+.book-opening .book-art,.book-closing .book-art,.book-opening .book-spread,.book-closing .book-spread{animation:none}
+.book-opening .book-spread>.left-page,.book-opening .book-spread>.right-page,.book-closing .book-spread>.left-page,.book-closing .book-spread>.right-page{visibility:hidden}
+.cover-engine-stage{position:absolute;left:6.8%;top:9%;width:86.8%;height:89%;z-index:12;pointer-events:none}
+.cover-engine-host{width:100%;height:100%;opacity:0}
+.cover-engine-stage.ready .cover-engine-host{opacity:1}
+.cover-engine-host .stf__item{box-shadow:0 4px 14px #34201124}
+/* The hardcover includes the red binding outside the paper's smaller bounds. */
+.cover-engine-stage .turn-leaf{background-color:transparent;background-size:230.415% 123.663%;background-position:12.014% 42.877%;border-radius:7px 3px 3px 7px}
+.cover-engine-stage .turn-leaf.right{background-position:88.692% 42.877%;border-radius:3px 7px 7px 3px}
+.cover-engine-stage .turn-leaf>.left-page,.cover-engine-stage .turn-leaf>.right-page{top:4.157%;bottom:8.09%;width:77.188%}
+.cover-engine-stage .turn-leaf>.left-page{left:15.553%}
+.cover-engine-stage .turn-leaf>.right-page{left:7.834%}
+.book-opening .room-toolbar,.book-opening .mobile-switch,.book-opening .audio-dock,.book-opening .room-footer{animation:room-controls-reveal 1.6s ease both}
+.book-closing .audio-dock,.book-closing .room-footer{opacity:0;transition:opacity .2s}
+@keyframes room-controls-reveal{0%,60%{opacity:0}100%{opacity:1}}
+.hardcover-front{background:#79271f;overflow:hidden;border-radius:3px 6px 6px 3px;box-shadow:inset 0 0 0 2px #54231c}
+.hardcover-front>img{position:absolute;left:-21.43%;top:-21.01%;width:142.86%;height:140.056%;max-width:none}
+.cover-placeholder{position:absolute;left:50%;top:0;width:50%;height:100%}
+/* StPageFlip owns the fold geometry and the moving crease shadows. */
+.natural-page-turn{position:absolute;left:9.5%;top:10.5%;width:81.4%;height:85%;z-index:8;pointer-events:none;opacity:0}
+.natural-page-turn.ready{opacity:1}
+.natural-page-turn>div{width:100%;height:100%}
+.turn-leaf{overflow:hidden;background-color:#efdfbf;background-image:url('/assets/book.png');background-size:245.7% 129.482%;background-position:16.02% 42.02%}
+.turn-leaf.right{background-position:84.65% 42.02%}
+.turn-leaf>.left-page,.turn-leaf>.right-page{top:2.588%;bottom:5.529%;width:82.31%;height:auto;transform:none}
+.turn-leaf>.left-page{left:9.95%}
+.turn-leaf>.right-page{left:8.354%}
+@media(max-width:899px){.cover-engine-stage{left:-100%;top:0;width:200%;height:100%}.cover-engine-stage .turn-leaf>.left-page,.cover-engine-stage .turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.cover-engine-stage .turn-leaf{background:var(--paper);border:2px solid #79271f}.natural-page-turn{left:-100%;top:0;width:200%;height:100%}.turn-leaf>.left-page,.turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.turn-leaf{background:#f2e5cb}}
+
+/* A clipped single leaf keeps the phone opening within its reading frame. */
+.book-opening .book-spread,.book-closing .book-spread{pointer-events:none}
+.mobile-cover-window{position:absolute;inset:0;overflow:hidden;perspective:1200px;border-radius:2px;isolation:isolate}
+.mobile-cover-ink{position:absolute;inset:0;z-index:0;background:var(--paper)}
+.mobile-cover-ink>.left-page,.mobile-cover-ink>.right-page{position:absolute;inset:0;width:100%;height:100%;visibility:visible}
+.mobile-hinged-cover{position:absolute;inset:0;z-index:1;transform-origin:left center;transform-style:preserve-3d;will-change:transform}
+.mobile-cover-front,.mobile-cover-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.mobile-cover-back{transform:rotateY(180deg);background:linear-gradient(90deg,#b69b6f,#f8edd7 9%);border:2px solid #79271f}
+.mobile-cover-front{box-shadow:8px 0 18px #34201133}
+@media(max-width:899px){
+  .cover-engine-stage{left:0;top:0;width:100%;height:100%}
+  .book-opening .room-toolbar,.book-opening .mobile-switch,.book-opening .audio-dock,.book-opening .room-footer{animation-duration:1.25s}
+}
+

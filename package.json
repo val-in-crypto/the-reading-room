@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
-    "postinstall": "node scripts/patch-page-flip.mjs"
+    "postinstall": "node scripts/patch-page-flip.mjs",
+    "test:ux": "node scripts/verify-ux.mjs"
   },
   "dependencies": {
     "@fontsource/caveat": "^5.3.0",
@@ -25,10 +26,12 @@
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "playwright": "^1.64.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

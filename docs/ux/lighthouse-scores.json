@@ -1,0 +1,36 @@
+{
+  "1440": [
+    {
+      "state": "Landing",
+      "score": 1,
+      "failures": []
+    },
+    {
+      "state": "Read",
+      "score": 1,
+      "failures": []
+    },
+    {
+      "state": "Listen",
+      "score": 1,
+      "failures": []
+    }
+  ],
+  "390": [
+    {
+      "state": "Landing",
+      "score": 1,
+      "failures": []
+    },
+    {
+      "state": "Read",
+      "score": 1,
+      "failures": []
+    },
+    {
+      "state": "Listen",
+      "score": 1,
+      "failures": []
+    }
+  ]
+}

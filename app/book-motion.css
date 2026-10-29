@@ -27,7 +27,7 @@
 .turn-leaf>.left-page,.turn-leaf>.right-page{top:2.588%;bottom:5.529%;width:82.31%;height:auto;transform:none}
 .turn-leaf>.left-page{left:9.95%}
 .turn-leaf>.right-page{left:8.354%}
-@media(max-width:800px){.cover-engine-stage{left:-100%;top:0;width:200%;height:100%}.cover-engine-stage .turn-leaf>.left-page,.cover-engine-stage .turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.cover-engine-stage .turn-leaf{background:var(--paper);border:2px solid #79271f}.natural-page-turn{left:-100%;top:0;width:200%;height:100%}.turn-leaf>.left-page,.turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.turn-leaf{background:#f2e5cb}}
+@media(max-width:899px){.cover-engine-stage{left:-100%;top:0;width:200%;height:100%}.cover-engine-stage .turn-leaf>.left-page,.cover-engine-stage .turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.cover-engine-stage .turn-leaf{background:var(--paper);border:2px solid #79271f}.natural-page-turn{left:-100%;top:0;width:200%;height:100%}.turn-leaf>.left-page,.turn-leaf>.right-page{left:0;top:0;bottom:0;width:100%;padding:18px 19px}.turn-leaf{background:#f2e5cb}}
 
 /* A clipped single leaf keeps the phone opening within its reading frame. */
 .book-opening .book-spread,.book-closing .book-spread{pointer-events:none}
@@ -38,7 +38,7 @@
 .mobile-cover-front,.mobile-cover-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .mobile-cover-back{transform:rotateY(180deg);background:linear-gradient(90deg,#b69b6f,#f8edd7 9%);border:2px solid #79271f}
 .mobile-cover-front{box-shadow:8px 0 18px #34201133}
-@media(max-width:800px){
+@media(max-width:899px){
   .cover-engine-stage{left:0;top:0;width:100%;height:100%}
   .book-opening .room-toolbar,.book-opening .mobile-switch,.book-opening .audio-dock,.book-opening .room-footer{animation-duration:1.25s}
 }

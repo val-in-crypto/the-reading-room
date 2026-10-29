@@ -83,8 +83,11 @@ export default function MovingCover({ direction, home, onComplete }: {
     const root = ref.current;
     const spread = root?.parentElement;
     if (!root || !spread) return;
-    if (matchMedia("(max-width:800px)").matches) return animateMobileCover(root, spread, direction, home, () => complete.current());
+    if (matchMedia("(max-width:899px)").matches) return animateMobileCover(root, spread, direction, home, () => complete.current());
     let disposed = false;
+    let completed = false;
+    let settleTimer = 0;
+    const finish = () => { if (!disposed && !completed) { completed = true; complete.current(); } };
     let engine: PageFlip | undefined;
     let frame = 0;
     const animations: Animation[] = [];
@@ -150,7 +153,7 @@ export default function MovingCover({ direction, home, onComplete }: {
       engine.on("flip", ({ data }) => {
         if (started && !disposed && data === (direction === "opening" ? 1 : 0)) {
           void Promise.all(animations.map(animation => animation.finished)).then(() => {
-            if (!disposed) complete.current();
+            finish();
           }).catch(() => {});
         }
       });
@@ -163,16 +166,22 @@ export default function MovingCover({ direction, home, onComplete }: {
             { transform: direction === "opening" ? closedTransform : "none" },
             { transform: direction === "opening" ? "none" : closedTransform },
           ], { duration: DURATION, easing: "cubic-bezier(.33,0,.2,1)", fill: "forwards" }));
+          // Some engine runs omit the final flip event. The existing movement
+          // still finishes; settle afterward so the UI cannot remain locked.
+          void animations[0].finished.then(() => {
+            if (!disposed && !completed) settleTimer = window.setTimeout(finish, 160);
+          }).catch(() => {});
           started = true;
           if (direction === "opening") engine?.flipNext("bottom");
           else engine?.flipPrev("bottom");
         });
       });
       engine.loadFromHTML(leaves);
-    }).catch(() => { if (!disposed) complete.current(); });
+    }).catch(() => { finish(); });
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
+      clearTimeout(settleTimer);
       animations.forEach(animation => animation.cancel());
       engine?.destroy();
       host.remove();

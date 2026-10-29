@@ -61,3 +61,14 @@ test("extraction preserves mixed paragraph and div-only article text", () => {
   const text = result.paragraphs.join(" ");
   for (const section of [opening,middle,ending]) assert.ok(text.includes(section.trim()));
 });
+
+
+test("publisher main-page navigation is removed without removing article prose", async () => {
+  const { cleanArticleParagraphs } = await import("../lib/article-text");
+  const body = ["28th October 2026", "Apple was notified of the incident."];
+  assert.deepEqual(cleanArticleParagraphs(["← Main Page", ...body]), body);
+  assert.deepEqual(cleanArticleParagraphs(["←", "Main Page", ...body]), body);
+  assert.deepEqual(cleanArticleParagraphs(["Main Page", ...body]), body);
+  const prose = ["The main page explains how certificates work.", "← Main Page"];
+  assert.deepEqual(cleanArticleParagraphs(prose), prose);
+});

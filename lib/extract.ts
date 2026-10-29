@@ -1,3 +1,4 @@
+import { cleanArticleParagraphs } from "./article-text";
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import { createHash } from "node:crypto";
@@ -38,6 +39,7 @@ export function extractArticle(html: string, url: string): Article {
       walk(content.window.document.body); flush();
     } finally { content.window.close(); }
     if (!paragraphs.length) paragraphs = [parsed.textContent.trim()];
+    paragraphs = cleanArticleParagraphs(paragraphs);
     if (paragraphs.join(" ").length > 60_000) throw new Error("This article is too long for the prototype. Paste a shorter section.");
     if (/subscribe to (continue|read)|sign in to (continue|read)|enable javascript|verify you are human/i.test(paragraphs.slice(0, 3).join(" ")) && paragraphs.join(" ").length < 1500) {
       throw new Error("This article appears to require a login or subscription. Paste text you have access to instead.");

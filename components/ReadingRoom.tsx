@@ -8,6 +8,7 @@ import { topics, type Article, type FeedStory, type Topic, type Voice } from "@/
 import { splitNarration } from "@/lib/audio";
 import { narratorCatalog } from "@/lib/narrators";
 import { paginateArticle } from "@/lib/reading";
+import { cleanArticleParagraphs } from "@/lib/article-text";
 import { parseImportInput } from "@/lib/import-input";
 import { filterArticles, visibleSelection, type Shelf } from "@/lib/shelves";
 import { IconButton, Popover, closePopover } from "./QuietControls";
@@ -117,7 +118,7 @@ export default function ReadingRoom() {
     try {
       const data = JSON.parse(localStorage.getItem(STORE) ?? "null");
       if (data) {
-        setImports((data.imports ?? []).filter((a: Article) => a.kind === "imported" && Array.isArray(a.paragraphs) && a.paragraphs.every(p => typeof p === "string") && (a.url === "" || safeLink(a.url))));
+        setImports((data.imports ?? []).filter((a: Article) => a.kind === "imported" && Array.isArray(a.paragraphs) && a.paragraphs.every(p => typeof p === "string") && (a.url === "" || safeLink(a.url))).map((a: Article) => a.url ? { ...a, paragraphs: cleanArticleParagraphs(a.paragraphs) } : a));
         setSaved(Array.isArray(data.saved) ? data.saved : []);
         positions.current = data.positions ?? {};
         savedVoice.current = data.voiceId ?? "";

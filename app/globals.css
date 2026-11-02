@@ -79,3 +79,5 @@ button,a,input,textarea,summary{-webkit-tap-highlight-color:transparent}button,a
 @media(min-width:900px){.book-spread{top:-20px}}
 
 @media(hover:none){.icon-button:hover>.tooltip{visibility:hidden}.icon-button:hover{background:none}}
+
+.discovery-tools>.search-glyph{margin-inline:10px 6px;flex-shrink:0;color:var(--muted)}

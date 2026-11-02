@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { articles } from "../lib/articles";
-import { filterArticles, visibleSelection } from "../lib/shelves";
+import { filterArticles, visibleSelection, readingCollection, rememberRead } from "../lib/shelves";
 
 test("a topic change replaces an excluded article with the first matching read", () => {
   const visible = filterArticles(articles, "Medicine", "", "collection", []);
@@ -20,4 +20,18 @@ test("removing the last bookmark empties both the saved shelf and reader", () =>
 test("search trims whitespace and an eligible article stays selected", () => {
   const visible = filterArticles(articles, "All", "  INTELLIGENCE  ", "collection", []);
   assert.equal(visibleSelection("ai-curiosity", visible), "ai-curiosity");
+});
+
+
+test("Collection starts empty and gains only opened samples and imported articles", () => {
+  assert.deepEqual(readingCollection(articles, []), []);
+  const added = { ...articles[0], id: "user-added", kind: "imported" as const };
+  const result = readingCollection([added, ...articles], [articles[2].id]);
+  assert.deepEqual(result.map(article => article.id), [articles[2].id, "user-added"]);
+  assert.equal(readingCollection([added], []).length, 1);
+});
+
+test("reading history moves an opened article to the front without duplicates", () => {
+  assert.deepEqual(rememberRead(["one", "two"], "two"), ["two", "one"]);
+  assert.equal(rememberRead(Array.from({ length: 200 }, (_, i) => `${i}`), "new").length, 200);
 });

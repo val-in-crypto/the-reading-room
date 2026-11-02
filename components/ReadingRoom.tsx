@@ -10,7 +10,7 @@ import { narratorCatalog } from "@/lib/narrators";
 import { paginateArticle } from "@/lib/reading";
 import { cleanArticleParagraphs } from "@/lib/article-text";
 import { parseImportInput } from "@/lib/import-input";
-import { filterArticles, visibleSelection, type Shelf } from "@/lib/shelves";
+import { filterArticles, visibleSelection, readingCollection, rememberRead, type Shelf } from "@/lib/shelves";
 import { IconButton, Popover, closePopover } from "./QuietControls";
 import TurningPage from "./TurningPage";
 import MovingCover, { type CoverHome } from "./MovingCover";
@@ -50,9 +50,10 @@ export default function ReadingRoom() {
   const [ready, setReady] = useState(false);
   const [imports, setImports] = useState<Article[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
-  const [selectedId, setSelectedId] = useState(starterArticles[0].id);
+  const [selectedId, setSelectedId] = useState("");
+  const [readIds, setReadIds] = useState<string[]>([]);
   const [topic, setTopic] = useState<Topic>("All");
-  const [shelf, setShelf] = useState<Shelf>("collection");
+  const [shelf, setShelf] = useState<Shelf>("today");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -110,9 +111,10 @@ export default function ReadingRoom() {
     update(); media.addEventListener("change", update); phone.addEventListener("change", update);
     return () => { media.removeEventListener("change", update); phone.removeEventListener("change", update); };
   }, []);
-  const visible = useMemo(() => filterArticles(allArticles, topic, search, shelf, saved), [allArticles, topic, search, shelf, saved]);
+  const collection = useMemo(() => readingCollection(allArticles, readIds), [allArticles, readIds]);
+  const visible = useMemo(() => filterArticles(shelf === "collection" ? collection : allArticles, topic, search, shelf, saved), [allArticles, collection, topic, search, shelf, saved]);
   const recentStories = stories.filter(a => Date.now() - new Date(a.publishedAt).getTime() <= 24 * 60 * 60_000);
-  const visibleStories = recentStories.filter(a => (topic === "All" || a.topic === topic) && a.title.toLowerCase().includes(search.trim().toLowerCase()));
+  const visibleStories = recentStories.filter(a => (topic === "All" || a.topic === topic) && `${a.title} ${a.source} ${a.topic}`.toLowerCase().includes(search.trim().toLowerCase()));
 
   useEffect(() => {
     try {
@@ -120,6 +122,7 @@ export default function ReadingRoom() {
       if (data) {
         setImports((data.imports ?? []).filter((a: Article) => a.kind === "imported" && Array.isArray(a.paragraphs) && a.paragraphs.every(p => typeof p === "string") && (a.url === "" || safeLink(a.url))).map((a: Article) => a.url ? { ...a, paragraphs: cleanArticleParagraphs(a.paragraphs) } : a));
         setSaved(Array.isArray(data.saved) ? data.saved : []);
+        setReadIds(Array.isArray(data.readIds) ? [...new Set<string>(data.readIds.filter((id: unknown): id is string => typeof id === "string"))].slice(0, 200) : []);
         positions.current = data.positions ?? {};
         savedVoice.current = data.voiceId ?? "";
         if (narratorCatalog.some(v => v.id === savedVoice.current)) setVoiceId(savedVoice.current);
@@ -140,10 +143,10 @@ export default function ReadingRoom() {
   useEffect(() => {
     if (!ready) return;
     const previous = positions.current[article.id] ?? { chunk: 0, time: 0, page: 0 };
-    positions.current[article.id] = { ...previous, page, chunk: chunkIndex, time: audioTime };
-    try { localStorage.setItem(STORE, JSON.stringify({ imports, saved, selectedId, positions: positions.current, voiceId, textSize, mode })); }
+    if (selectedId) positions.current[article.id] = { ...previous, page, chunk: chunkIndex, time: audioTime };
+    try { localStorage.setItem(STORE, JSON.stringify({ imports, saved, readIds, selectedId, positions: positions.current, voiceId, textSize, mode })); }
     catch { setToast("Your browser could not save this collection. It will remain available for this session."); }
-  }, [ready, imports, saved, selectedId, page, chunkIndex, audioTime, voiceId, textSize, mode, article.id]);
+  }, [ready, imports, saved, readIds, selectedId, page, chunkIndex, audioTime, voiceId, textSize, mode, article.id]);
   useEffect(() => {
     if (!ready || shelf === "today" || pendingStory) return;
     const next = visibleSelection(selectedId, visible);
@@ -164,8 +167,9 @@ export default function ReadingRoom() {
   useEffect(() => { audioRef.current && (audioRef.current.playbackRate = speed); }, [speed]);
   useEffect(() => { reading.current?.scrollTo({ top: 0 }); }, [page, selectedId]);
 
-  function openBook() {
-    if (bookMotion) return;
+  function openBook(start: "today" | "article" = "today") {
+    if (bookMotion || opened) return;
+    if (start === "today") { selectShelf("today"); setSelectedId(""); }
     const cover = document.querySelector(".cover-book")?.getBoundingClientRect();
     if (cover) coverHome.current = { left: cover.left, top: cover.top, width: cover.width, height: cover.height, viewportWidth: innerWidth, viewportHeight: innerHeight };
     setOpened(true);
@@ -207,7 +211,7 @@ export default function ReadingRoom() {
   function chooseArticle(a: Article, reveal = true) {
     stopAudio(); storySequence.current++; setOpeningStory(""); setPendingStory(null); setStoryError(null); setPageTurn(null); setFullText(true); setSelectedId(a.id); const position = positions.current[a.id];
     setPage(position?.page ?? 0); setChunkIndex(position?.chunk ?? 0); setAudioTime(position?.time ?? 0); setAudioDuration(0); audioRef.current = null;
-    if (reveal) setMobilePage("article"); setMode("read");
+    if (reveal) { setMobilePage("article"); setReadIds(previous => rememberRead(previous, a.id)); } setMode("read");
   }
   function toggleSaved(id: string) { setSaved(previous => previous.includes(id) ? previous.filter(x => x !== id) : [...previous, id]); }
   async function loadFeed() {
@@ -232,7 +236,7 @@ export default function ReadingRoom() {
         imported = { id: `paste-${crypto.randomUUID()}`, title: input.title, description: input.text.slice(0, 240), paragraphs: input.paragraphs, author: "Added by you", source: "Pasted article", url: "", topic: topic === "All" ? "Tech" : topic, minutes: Math.max(1, Math.ceil(input.text.split(/\s+/).length / 220)), illustration: "imported", kind: "imported", addedAt: Date.now() };
       }
       setImports(previous => [imported, ...previous.filter(a => a.id !== imported.id)].slice(0, 30)); setSaved(previous => previous.includes(imported.id) ? previous : [...previous, imported.id]);
-      chooseArticle(imported); setShelf("collection"); setTopic("All"); setSearch(""); setModal(null); setNewArticleId(imported.id); openBook(); setToast("Article added.");
+      chooseArticle(imported); setShelf("collection"); setTopic("All"); setSearch(""); setModal(null); setNewArticleId(imported.id); openBook("article"); setToast("Article added.");
     } catch (error) { if (request === importSequence.current) setImportError(error instanceof Error ? error.message : "Could not add this article."); }
     finally { if (request === importSequence.current) setImporting(false); }
   }
@@ -348,8 +352,8 @@ export default function ReadingRoom() {
     </header>
     {!opened ? <section className="cover-scene" id="main-content" aria-label="Welcome to the Reading Room">
       <img className="cover-flowers" src="/assets/flowers.png" alt="" />
-      <button className="cover-book" onClick={openBook} aria-label="Open The Reading Room"><img src="/assets/cover.png" alt="The Reading Room. A collection of curious reads." /></button>
-      <button className="open-invitation" onClick={openBook}><img src="/assets/arrow.svg" alt="" /><span>open me</span></button>
+      <button className="cover-book" onClick={() => openBook()} aria-label="Open The Reading Room"><img src="/assets/cover.png" alt="The Reading Room. A collection of curious reads." /></button>
+      <button className="open-invitation" onClick={() => openBook()}><img src="/assets/arrow.svg" alt="" /><span>open me</span></button>
     </section> : <>
       <section className="book-spread" id="main-content" aria-label="Open reading book">
         <div className="book-art" aria-hidden="true"><img src="/assets/book.png" alt="" /></div>
@@ -358,20 +362,20 @@ export default function ReadingRoom() {
         <>
         <section className={`left-page ${mobilePage !== "contents" ? "mobile-hidden" : ""}`} aria-label="Article collection">
           <div className="shelf-tabs" onKeyDown={tabKeys} role="tablist" aria-label="Article shelves">{([
-            ["collection", "Collection", BookOpen], ["today", "Today", Flame], ["saved", "Saved", Bookmark],
+            ["today", "Today", Flame], ["collection", "Collection", BookOpen], ["saved", "Saved", Bookmark],
           ] as const).map(([id, label, Icon]) => <button key={id} role="tab" tabIndex={shelf === id ? 0 : -1} aria-selected={shelf === id} onClick={() => selectShelf(id)}><Icon /><span>{label}</span></button>)}</div>
           <div className="discovery-tools">
-            <IconButton label={searchOpen ? "Close search" : "Search articles"} aria-expanded={searchOpen} onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) requestAnimationFrame(() => searchRef.current?.focus()); else setSearch(""); }}><Search /></IconButton>
-            {searchOpen && <label className="search-field"><span className="sr-only">Search articles</span><input ref={searchRef} placeholder="Search articles" value={search} onChange={e => setSearch(e.target.value)} /></label>}
+            {shelf === "today" ? <Search className="search-glyph" aria-hidden="true" /> : <IconButton label={searchOpen ? "Close search" : "Search articles"} aria-expanded={searchOpen} onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) requestAnimationFrame(() => searchRef.current?.focus()); else setSearch(""); }}><Search /></IconButton>}
+            {(searchOpen || shelf === "today") && <label className="search-field"><span className="sr-only">Search articles</span><input ref={searchRef} placeholder={shelf === "today" ? "Search today’s articles" : "Search your collection"} value={search} onChange={e => setSearch(e.target.value)} /></label>}
             {!searchOpen && topic !== "All" && <button className="active-filter" aria-label={`Clear ${topic} filter`} onClick={() => setTopic("All")}>{topic}<X /></button>}
             <Popover label="Filter topics" icon={<SlidersHorizontal />} className="topic-popover"><div className="topic-list" aria-label="Topics">{topics.map(t => <button key={t} aria-pressed={topic === t} onClick={e => { setTopic(t); closePopover(e.currentTarget); }}>{t}</button>)}</div></Popover>
           </div>
           <div className="contents-scroll">
             {shelf === "today" ? <>
-              <div className="feed-note"><span>Hacker News · last 24 hours</span><IconButton label="Refresh today’s articles" disabled={feedLoading} onClick={() => void loadFeed()}><RotateCw /></IconButton></div>
+              <div className="feed-note"><span>Trending today · Hacker News</span><IconButton label="Refresh today’s articles" disabled={feedLoading} onClick={() => void loadFeed()}><RotateCw /></IconButton></div>
               {feedLoading && <div className="feed-skeleton" role="status" aria-label="Loading today’s articles">{[0, 1, 2].map(i => <div key={i}><span /><span /><span /></div>)}</div>}
               {feedError && <p className="inline-error" role="alert">{feedError}<button onClick={() => void loadFeed()}>Retry</button></p>}
-              {!feedLoading && !feedError && !visibleStories.length && <div className="empty-state"><BookOpen size={28} /><p>No fresh stories on this shelf yet.</p><button onClick={() => void loadFeed()}>Retry</button></div>}
+              {!feedLoading && !feedError && !visibleStories.length && <div className="empty-state"><BookOpen size={28} /><p>{search.trim() || topic !== "All" ? "No trending reads match your search." : "No fresh stories on this shelf yet."}</p>{search.trim() || topic !== "All" ? <button onClick={() => { setSearch(""); setTopic("All"); searchRef.current?.focus(); }}>Clear search and filters</button> : <button onClick={() => void loadFeed()}>Retry</button>}</div>}
               {!feedLoading && visibleStories.map(story => <div className={`news-row ${article.url === story.url && !readerEmpty ? "selected" : ""}`} key={story.id}><button className="story-title" disabled={!!openingStory} onClick={() => void openPopularStory(story)}>{story.title}<span className="article-meta">{story.topic} · {story.source}</span>{openingStory === story.id && <LoaderCircle className="spin" />}</button></div>)}
               {storyError && <div className="story-error" role="alert"><p>{storyError.message}</p><button onClick={() => { openImport(); }}>Paste article text</button></div>}
             </> : <>
@@ -380,7 +384,7 @@ export default function ReadingRoom() {
                 <button className="bookmark-button icon-button" aria-label={saved.includes(a.id) ? `Remove bookmark: ${a.title}` : `Bookmark: ${a.title}`} aria-pressed={saved.includes(a.id)} onClick={() => toggleSaved(a.id)}><Bookmark size={16} fill={saved.includes(a.id) ? "currentColor" : "none"} /><span className="tooltip" aria-hidden="true">{saved.includes(a.id) ? "Remove bookmark" : "Bookmark"}</span></button>
                 <img className="page-rule" src="/assets/rule.svg" alt="" />
               </div>)}
-              {!visible.length && <div className="empty-state"><Bookmark size={26} /><p>{shelf === "saved" ? "Nothing saved yet. Tap the bookmark icon on any read." : "No reads found just yet."}</p>{shelf !== "saved" && <span>Try a different topic or search.</span>}</div>}
+              {!visible.length && <div className="empty-state"><Bookmark size={26} /><p>{shelf === "saved" ? "Nothing saved yet. Tap the bookmark icon on any read." : collection.length ? "No reads found just yet." : "Your collection starts here."}</p>{shelf === "collection" && (collection.length ? <span>Try a different topic or search.</span> : <><span>Articles you read and add will appear here.</span><button onClick={() => selectShelf("today")}>Explore Today</button></>)}</div>}
             </>}
           </div>
           <div className="collection-actions"><button className="add-to-book" onClick={() => openImport()}><Plus />Add an article</button><IconButton label="About The Reading Room" onClick={() => setModal("about")}><Info /></IconButton></div>

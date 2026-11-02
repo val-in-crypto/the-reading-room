@@ -21,7 +21,7 @@ Set these server environment variables in `.env.local` or Vercel:
 | Variable | Purpose |
 | --- | --- |
 | `ELEVENLABS_API_KEY` | Your ElevenLabs API key; never use a `NEXT_PUBLIC_` prefix. |
-| `ELEVENLABS_VOICE_IDS` | A comma-separated list of 3–4 voice IDs accessible to your account. If empty, the app loads the first four available account voices. |
+| `ELEVENLABS_VOICE_IDS` | Optional comma-separated voice IDs to prioritize. The app fills the collection with up to 14 curated, account-accessible narrators, including British, American, New Zealand, and Australian accents. |
 | `ELEVENLABS_MODEL_ID` | Defaults to `eleven_multilingual_v2`. |
 
 Get voice IDs from the [ElevenLabs voices endpoint](https://elevenlabs.io/docs/api-reference/voices/get-all). The interface uses real provider names and preview URLs. The four mood cards before configuration are placeholders, not generated voices. No credentials are entered into the UI or committed to the repository.
